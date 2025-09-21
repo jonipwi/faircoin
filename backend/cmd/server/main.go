@@ -29,11 +29,10 @@ func main() {
 	}
 	defer db.Close()
 
-	// Auto-migrate database schemas (temporarily disabled)
-	// if err := database.Migrate(db); err != nil {
-	// 	log.Fatalf("Failed to run database migrations: %v", err)
-	// }
-	log.Println("Database migration skipped - tables already exist")
+	// Auto-migrate database schemas
+	if err := database.Migrate(db); err != nil {
+		log.Fatalf("Failed to run database migrations: %v", err)
+	}
 
 	// Initialize services
 	userService := services.NewUserService(db)
