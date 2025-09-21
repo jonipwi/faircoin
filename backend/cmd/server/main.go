@@ -199,19 +199,24 @@ func main() {
 		c.File(frontendPath + "/index.html")
 	})
 
-	// Admin dashboard routes (protected)
-	adminDashboard := router.Group("/admin-dashboard")
-	adminDashboard.Use(apiHandler.AuthMiddleware())
-	adminDashboard.Use(apiHandler.AdminMiddleware())
-	{
-		adminDashboard.GET("/", func(c *gin.Context) {
-			c.File(frontendPath + "/admin.html")
-		})
-	}
-
-	router.GET("/admin.html", apiHandler.AuthMiddleware(), apiHandler.AdminMiddleware(), func(c *gin.Context) {
+	// Admin dashboard routes - serve the page first, then handle auth in JavaScript
+	router.GET("/admin-dashboard/", func(c *gin.Context) {
 		c.File(frontendPath + "/admin.html")
 	})
+
+	router.GET("/admin.html", func(c *gin.Context) {
+		c.File(frontendPath + "/admin.html")
+	})
+
+	// Protected admin API endpoints
+	adminAPI := router.Group("/admin-api")
+	adminAPI.Use(apiHandler.AuthMiddleware())
+	adminAPI.Use(apiHandler.AdminMiddleware())
+	{
+		adminAPI.GET("/status", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"status": "authenticated", "admin": true})
+		})
+	}
 
 	router.GET("/index.html", func(c *gin.Context) {
 		c.File(frontendPath + "/index.html")

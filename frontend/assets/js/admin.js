@@ -8,12 +8,14 @@ class FairCoinAdmin {
         this.charts = {};
         this.isAuthenticated = false;
         this.currentUser = null;
+        this.refreshInterval = null;
         
         this.init();
     }
 
     init() {
         this.setupEventListeners();
+        this.setupGlobalErrorHandling();
         
         // Check if user is already authenticated
         if (this.authToken) {
@@ -21,6 +23,30 @@ class FairCoinAdmin {
         } else {
             this.showLoginModal();
         }
+    }
+
+    setupGlobalErrorHandling() {
+        // Intercept all fetch requests to handle 401 responses globally
+        const originalFetch = window.fetch;
+        window.fetch = async (...args) => {
+            const response = await originalFetch(...args);
+            
+            // If we get a 401 response, auto-logout
+            if (response.status === 401) {
+                console.warn('Authentication failed - auto-logout triggered');
+                this.handleAutoLogout('Session expired or invalid credentials');
+            }
+            
+            return response;
+        };
+        
+        // Handle browser navigation to protected routes
+        window.addEventListener('load', () => {
+            this.checkInitialAuth();
+        });
+        
+        // Also check immediately
+        this.checkInitialAuth();
     }
 
     setupEventListeners() {
@@ -133,6 +159,11 @@ class FairCoinAdmin {
     }
 
     async makeAuthenticatedRequest(url, options = {}) {
+        if (!this.authToken) {
+            this.handleAutoLogout('No authentication token available');
+            throw new Error('No authentication token');
+        }
+
         const defaultOptions = {
             headers: {
                 'Authorization': `Bearer ${this.authToken}`,
@@ -141,14 +172,24 @@ class FairCoinAdmin {
             }
         };
 
-        const response = await fetch(url, { ...options, headers: defaultOptions.headers });
-        
-        if (response.status === 401 || response.status === 403) {
-            this.handleUnauthorized();
-            throw new Error('Unauthorized access');
+        try {
+            const response = await fetch(url, { ...options, headers: defaultOptions.headers });
+            
+            if (response.status === 401) {
+                this.handleAutoLogout('Authentication failed - please login again');
+                throw new Error('Unauthorized access');
+            } else if (response.status === 403) {
+                this.handleAutoLogout('Access denied - insufficient privileges');
+                throw new Error('Forbidden access');
+            }
+            
+            return response;
+        } catch (error) {
+            if (error.message.includes('Failed to fetch')) {
+                this.showError('Network error - server may be unavailable');
+            }
+            throw error;
         }
-        
-        return response;
     }
 
     async fetchStats() {
@@ -1545,6 +1586,30 @@ class FairCoinAdmin {
         this.showLoginModal();
     }
 
+    handleAutoLogout(message = 'Session expired') {
+        console.log('Auto-logout triggered:', message);
+        
+        // Clear authentication data
+        localStorage.removeItem('admin_token');
+        this.authToken = null;
+        this.currentUser = null;
+        this.isAuthenticated = false;
+        this.hideAdminInfo();
+        
+        // Show user-friendly message
+        this.showError(message + '. Please login again.');
+        
+        // Force show login modal
+        this.showLoginModal();
+        
+        // If we're on a protected route, redirect to admin page
+        if (window.location.pathname !== '/admin.html' && window.location.pathname !== '/') {
+            setTimeout(() => {
+                window.location.href = '/admin.html';
+            }, 2000);
+        }
+    }
+
     showModal(title, content, confirmCallback) {
         document.getElementById('modal-title').textContent = title;
         document.getElementById('modal-body').innerHTML = content;
@@ -1577,9 +1642,14 @@ class FairCoinAdmin {
     }
 
     startDataRefresh() {
+        // Clear any existing interval
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+        }
+        
         // Refresh data every 30 seconds
-        setInterval(() => {
-            if (this.currentSection === 'dashboard') {
+        this.refreshInterval = setInterval(() => {
+            if (this.currentSection === 'dashboard' && this.isAuthenticated) {
                 this.loadDashboard();
             }
         }, 30000);
@@ -2020,6 +2090,29 @@ class FairCoinAdmin {
         }, 2000);
     }
 
+    checkAuthStatus() {
+        // Check if we're on a protected route
+        const isProtectedRoute = window.location.pathname.includes('/admin');
+        
+        if (isProtectedRoute && !this.isAuthenticated && !this.authToken) {
+            this.handleAutoLogout('Authentication required for admin access');
+            return false;
+        }
+        
+        return true;
+    }
+
+    checkInitialAuth() {
+        const currentPath = window.location.pathname;
+        const isAdminRoute = currentPath.includes('/admin');
+        
+        console.log('Checking initial auth - Path:', currentPath, 'Is Admin Route:', isAdminRoute, 'Has Token:', !!this.authToken);
+        
+        if (isAdminRoute && !this.authToken) {
+            this.handleAutoLogout('Please login to access the admin dashboard');
+        }
+    }
+
     async adminLogin() {
         const username = document.getElementById('admin-username').value;
         const password = document.getElementById('admin-password').value;
@@ -2082,6 +2175,11 @@ class FairCoinAdmin {
     }
 
     async validateToken() {
+        if (!this.authToken) {
+            this.handleAutoLogout('No authentication token found');
+            return;
+        }
+
         try {
             const response = await fetch(`${this.apiBase}/v1/users/profile`, {
                 headers: {
@@ -2095,11 +2193,10 @@ class FairCoinAdmin {
                 
                 // Check if user has admin privileges
                 if (!user.is_admin) {
-                    this.showError('Access denied: Administrator privileges required');
-                    localStorage.removeItem('admin_token');
-                    this.authToken = null;
-                    this.isAuthenticated = false;
-                    this.redirectToMainApp();
+                    this.handleAutoLogout('Access denied: Administrator privileges required');
+                    setTimeout(() => {
+                        this.redirectToMainApp();
+                    }, 2000);
                     return;
                 }
                 
@@ -2115,19 +2212,14 @@ class FairCoinAdmin {
                 if (makeAdminBtn) {
                     makeAdminBtn.style.display = 'none';
                 }
+            } else if (response.status === 401) {
+                this.handleAutoLogout('Authentication token expired');
             } else {
-                // Token is invalid
-                localStorage.removeItem('admin_token');
-                this.authToken = null;
-                this.isAuthenticated = false;
-                this.showLoginModal();
+                this.handleAutoLogout('Failed to validate authentication');
             }
         } catch (error) {
             console.error('Token validation error:', error);
-            localStorage.removeItem('admin_token');
-            this.authToken = null;
-            this.isAuthenticated = false;
-            this.showLoginModal();
+            this.handleAutoLogout('Network error during authentication');
         }
     }
 
@@ -2288,12 +2380,29 @@ class FairCoinAdmin {
     }
 
     logout() {
+        console.log('Manual logout triggered');
+        
+        // Clear all authentication data
         localStorage.removeItem('admin_token');
         this.authToken = null;
         this.currentUser = null;
         this.isAuthenticated = false;
         this.hideAdminInfo();
+        
+        // Clear any ongoing intervals/timers
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+            this.refreshInterval = null;
+        }
+        
+        // Show logout message and login modal
+        this.showSuccess('Logged out successfully');
         this.showLoginModal();
+        
+        // Redirect to main page after a short delay
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 1500);
     }
 }
 
