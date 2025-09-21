@@ -248,12 +248,31 @@ body {
     padding: 25px;
     border-radius: 12px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    height: 400px;
+    display: flex;
+    flex-direction: column;
 }
 
 .chart-card h3 {
     color: #2c3e50;
     margin-bottom: 20px;
     font-size: 1.3rem;
+    flex-shrink: 0;
+}
+
+.chart-container {
+    flex: 1;
+    position: relative;
+    height: 320px;
+    width: 100%;
+}
+
+.chart-card canvas {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
 }
 
 /* Tables */

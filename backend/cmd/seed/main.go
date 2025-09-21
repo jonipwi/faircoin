@@ -105,6 +105,40 @@ func main() {
 		}
 	}
 
+	// Create some transfer transactions with different dates for volume chart
+	log.Println("Creating transfer transactions over time...")
+	if len(userIDs) >= 2 {
+		for month := 5; month >= 0; month-- {
+			for i := 0; i < 3; i++ { // 3 transactions per month
+				fromIdx := rand.Intn(len(userIDs))
+				toIdx := rand.Intn(len(userIDs))
+				if fromIdx == toIdx {
+					continue
+				}
+
+				amount := float64(rand.Intn(50) + 20) // Smaller amounts to avoid balance issues
+
+				// Create transaction record directly in database (bypassing balance checks)
+				transaction := &models.Transaction{
+					UserID:      userIDs[fromIdx],
+					ToUserID:    &userIDs[toIdx],
+					Type:        models.TransactionTypeTransfer,
+					Amount:      amount,
+					Fee:         amount * 0.001,
+					Description: "Historical test transaction",
+					Status:      "completed",
+					CreatedAt:   time.Now().AddDate(0, -month, -rand.Intn(28)),
+				}
+
+				if err := transactionService.GetDB().Create(transaction).Error; err != nil {
+					log.Printf("Error creating transfer transaction: %v", err)
+				} else {
+					log.Printf("Created transfer transaction: %.2f FC for month -%d", amount, month)
+				}
+			}
+		}
+	}
+
 	// Create some fairness rewards
 	log.Println("Creating fairness rewards...")
 	for i, userID := range userIDs {

@@ -812,6 +812,7 @@ func (h *Handler) GetPFIDistribution(c *gin.Context) {
 	h.userService.GetDB().Model(&models.User{}).Where("pfi >= 50 AND pfi < 70").Count(&average)
 	h.userService.GetDB().Model(&models.User{}).Where("pfi < 50").Count(&poor)
 
+	// Ensure data is in the correct order for the chart
 	distribution = append(distribution, struct {
 		Range string
 		Count int64
@@ -936,4 +937,37 @@ func (h *Handler) GetMonetaryPolicyInfo(c *gin.Context) {
 		"circulating_supply": policy.CirculatingSupply,
 		"average_pfi":        policy.AveragePFI,
 	})
+}
+
+// GetTransactionVolume returns transaction volume over time
+func (h *Handler) GetTransactionVolume(c *gin.Context) {
+	var results []struct {
+		Month  string
+		Volume float64
+	}
+
+	// Get transaction volume for the last 6 months
+	for i := 5; i >= 0; i-- {
+		date := time.Now().AddDate(0, -i, 0)
+		monthStart := time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())
+		monthEnd := monthStart.AddDate(0, 1, 0).Add(-time.Second)
+
+		var monthVolume struct {
+			Total float64
+		}
+
+		h.transactionService.GetDB().Model(&models.Transaction{}).
+			Where("created_at BETWEEN ? AND ? AND type = ?", monthStart, monthEnd, models.TransactionTypeTransfer).
+			Select("COALESCE(SUM(amount), 0) as total").Scan(&monthVolume)
+
+		results = append(results, struct {
+			Month  string
+			Volume float64
+		}{
+			Month:  date.Format("Jan"),
+			Volume: monthVolume.Total,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"volume_data": results})
 }

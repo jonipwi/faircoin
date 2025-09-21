@@ -161,6 +161,7 @@ func main() {
 			admin.GET("/transactions", apiHandler.GetAllTransactions)
 			admin.GET("/pfi-distribution", apiHandler.GetPFIDistribution)
 			admin.GET("/activity", apiHandler.GetRecentActivity)
+			admin.GET("/transaction-volume", apiHandler.GetTransactionVolume)
 			admin.PUT("/users/:id", apiHandler.UpdateUserStatus)
 			admin.GET("/monetary-policy", apiHandler.GetMonetaryPolicyInfo)
 		}

@@ -116,7 +116,11 @@ class FairCoinAdmin {
 
             this.updateStats(stats);
             this.updateRecentActivity(activity);
-            this.createCharts();
+            
+            // Wait for DOM to be ready before creating charts
+            setTimeout(() => {
+                this.createCharts();
+            }, 100);
         } catch (error) {
             console.error('Error loading dashboard:', error);
             this.showError('Failed to load dashboard data');
@@ -194,8 +198,17 @@ class FairCoinAdmin {
     }
 
     async createCharts() {
-        await this.createPFIChart();
-        this.createTransactionChart();
+        // Ensure canvas elements exist before creating charts
+        const pfiCanvas = document.getElementById('pfiChart');
+        const txCanvas = document.getElementById('transactionChart');
+        
+        if (pfiCanvas) {
+            await this.createPFIChart();
+        }
+        
+        if (txCanvas) {
+            await this.createTransactionChart();
+        }
     }
 
     async createPFIChart() {
@@ -210,39 +223,89 @@ class FairCoinAdmin {
             if (response.ok) {
                 const data = await response.json();
                 distribution = data.distribution || [];
+                console.log('PFI distribution data:', distribution);
             } else {
+                console.error('Failed to fetch PFI distribution:', response.status);
                 // Fallback data
                 distribution = [
-                    { range: 'excellent', count: 0 },
-                    { range: 'good', count: 0 },
-                    { range: 'average', count: 0 },
-                    { range: 'poor', count: 0 }
+                    { Range: 'excellent', Count: 0 },
+                    { Range: 'good', Count: 0 },
+                    { Range: 'average', Count: 0 },
+                    { Range: 'poor', Count: 0 }
                 ];
             }
 
-            const ctx = document.getElementById('pfiChart').getContext('2d');
+            const canvas = document.getElementById('pfiChart');
+            if (!canvas) {
+                console.error('PFI chart canvas not found');
+                return;
+            }
+            
+            const ctx = canvas.getContext('2d');
             
             if (this.charts.pfi) {
                 this.charts.pfi.destroy();
             }
 
             this.charts.pfi = new Chart(ctx, {
-                type: 'doughnut',
+                type: 'bar',
                 data: {
                     labels: ['Excellent (90-100)', 'Good (70-89)', 'Average (50-69)', 'Poor (0-49)'],
                     datasets: [{
-                        data: distribution.map(d => d.count),
-                        backgroundColor: ['#2ecc71', '#3498db', '#f39c12', '#e74c3c'],
-                        borderWidth: 0
+                        label: 'Number of Users',
+                        data: distribution.map(d => d.Count || 0),
+                        backgroundColor: [
+                            'rgba(46, 204, 113, 0.8)',
+                            'rgba(52, 152, 219, 0.8)',
+                            'rgba(243, 156, 18, 0.8)',
+                            'rgba(231, 76, 60, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(46, 204, 113, 1)',
+                            'rgba(52, 152, 219, 1)',
+                            'rgba(243, 156, 18, 1)',
+                            'rgba(231, 76, 60, 1)'
+                        ],
+                        borderWidth: 1
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    resizeDelay: 100,
                     plugins: {
                         legend: {
-                            position: 'right'
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'PFI★ Score Distribution'
                         }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    return Number.isInteger(value) ? value + ' users' : '';
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Number of Users'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'PFI★ Score Ranges'
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 800,
+                        easing: 'easeOutBounce'
                     }
                 }
             });
@@ -251,41 +314,89 @@ class FairCoinAdmin {
         }
     }
 
-    createTransactionChart() {
-        const ctx = document.getElementById('transactionChart').getContext('2d');
-        
-        if (this.charts.transaction) {
-            this.charts.transaction.destroy();
-        }
+    async createTransactionChart() {
+        try {
+            const canvas = document.getElementById('transactionChart');
+            if (!canvas) {
+                console.error('Transaction chart canvas not found');
+                return;
+            }
+            
+            // Fetch real transaction volume data
+            let volumeData = [];
+            let labels = [];
+            
+            try {
+                const response = await fetch(`${this.apiBase}/v1/admin/transaction-volume`, {
+                    headers: {
+                        'Authorization': `Bearer ${this.authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const volumes = data.volume_data || [];
+                    console.log('Transaction volume data:', volumes);
+                    
+                    labels = volumes.map(v => v.Month);
+                    volumeData = volumes.map(v => v.Volume || 0);
+                } else {
+                    console.error('Failed to fetch transaction volume:', response.status);
+                    // Fallback data
+                    labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+                    volumeData = [0, 0, 0, 0, 0, 0];
+                }
+            } catch (error) {
+                console.error('Error fetching transaction volume:', error);
+                labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+                volumeData = [0, 0, 0, 0, 0, 0];
+            }
+            
+            const ctx = canvas.getContext('2d');
+            
+            if (this.charts.transaction) {
+                this.charts.transaction.destroy();
+            }
 
-        this.charts.transaction = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                datasets: [{
-                    label: 'Transaction Volume (FC)',
-                    data: [120000, 150000, 180000, 165000, 195000, 210000],
-                    borderColor: '#3498db',
-                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return value.toLocaleString() + ' FC';
+            this.charts.transaction = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Transaction Volume (FC)',
+                        data: volumeData,
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString() + ' FC';
+                                }
                             }
                         }
                     }
                 }
-            }
-        });
+            });
+        } catch (error) {
+            console.error('Error creating transaction chart:', error);
+        }
     }
 
     async loadUsers() {
