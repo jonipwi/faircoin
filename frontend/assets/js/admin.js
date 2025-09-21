@@ -1637,10 +1637,14 @@ class FairCoinAdmin {
                 // Token is invalid
                 localStorage.removeItem('admin_token');
                 this.authToken = null;
+                this.isAuthenticated = false;
                 this.showLoginModal();
             }
         } catch (error) {
             console.error('Token validation error:', error);
+            localStorage.removeItem('admin_token');
+            this.authToken = null;
+            this.isAuthenticated = false;
             this.showLoginModal();
         }
     }
