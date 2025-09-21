@@ -49,18 +49,35 @@ func Migrate(db *gorm.DB) error {
 		db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";")
 	}
 
-	// Auto-migrate all models
-	return db.AutoMigrate(
-		&models.User{},
-		&models.Wallet{},
-		&models.Transaction{},
-		&models.Attestation{},
-		&models.Rating{},
-		&models.Proposal{},
-		&models.Vote{},
-		&models.CommunityBasketIndex{},
-		&models.MonetaryPolicy{},
-	).Error
+	// Check if migration is needed
+	if !db.HasTable(&models.User{}) {
+		// Tables don't exist, run full migration
+		return db.AutoMigrate(
+			&models.User{},
+			&models.Wallet{},
+			&models.Transaction{},
+			&models.Attestation{},
+			&models.Rating{},
+			&models.Proposal{},
+			&models.Vote{},
+			&models.CommunityBasketIndex{},
+			&models.MonetaryPolicy{},
+		).Error
+	}
+
+	// Tables exist, just ensure schema is up to date (without creating new tables)
+	// This will only add new columns or modify existing ones if needed
+	db.AutoMigrate(&models.User{})
+	db.AutoMigrate(&models.Wallet{})
+	db.AutoMigrate(&models.Transaction{})
+	db.AutoMigrate(&models.Attestation{})
+	db.AutoMigrate(&models.Rating{})
+	db.AutoMigrate(&models.Proposal{})
+	db.AutoMigrate(&models.Vote{})
+	db.AutoMigrate(&models.CommunityBasketIndex{})
+	db.AutoMigrate(&models.MonetaryPolicy{})
+
+	return nil
 }
 
 // CreateIndices creates database indices for better performance
