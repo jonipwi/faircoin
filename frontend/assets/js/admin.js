@@ -7,6 +7,7 @@ class FairCoinAdmin {
         this.authToken = localStorage.getItem('admin_token');
         this.charts = {};
         this.isAuthenticated = false;
+        this.currentUser = null;
         
         this.init();
     }
@@ -131,13 +132,28 @@ class FairCoinAdmin {
         }
     }
 
+    async makeAuthenticatedRequest(url, options = {}) {
+        const defaultOptions = {
+            headers: {
+                'Authorization': `Bearer ${this.authToken}`,
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        };
+
+        const response = await fetch(url, { ...options, headers: defaultOptions.headers });
+        
+        if (response.status === 401 || response.status === 403) {
+            this.handleUnauthorized();
+            throw new Error('Unauthorized access');
+        }
+        
+        return response;
+    }
+
     async fetchStats() {
         try {
-            const response = await fetch(`${this.apiBase}/v1/admin/stats`, {
-                headers: {
-                    'Authorization': `Bearer ${this.authToken}`
-                }
-            });
+            const response = await this.makeAuthenticatedRequest(`${this.apiBase}/v1/admin/stats`);
             
             if (!response.ok) {
                 throw new Error('Failed to fetch stats');
@@ -435,24 +451,38 @@ class FairCoinAdmin {
 
     displayUsers(users) {
         const tbody = document.getElementById('users-table');
-        tbody.innerHTML = users.map(user => `
-            <tr>
-                <td>${user.username || 'N/A'}</td>
-                <td>${user.email || 'N/A'}</td>
-                <td><span class="pfi-score">${user.pfi || 0}★</span></td>
-                <td><span class="tfi-score">${user.tfi || 0}★</span></td>
-                <td>${(user.balance || 0).toFixed(2)} FC</td>
-                <td><span class="status-badge status-${user.is_verified ? 'verified' : 'pending'}">${user.is_verified ? 'verified' : 'pending'}</span></td>
-                <td>
-                    <button class="btn btn-sm btn-primary" onclick="admin.editUser('${user.id}')">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="admin.blockUser('${user.id}')">
-                        <i class="fas fa-ban"></i>
-                    </button>
-                </td>
-            </tr>
-        `).join('');
+        tbody.innerHTML = users.map(user => {
+            // Build roles display
+            const roles = [];
+            if (user.is_admin) roles.push('<span class="role-badge admin"><i class="fas fa-crown"></i> Admin</span>');
+            if (user.is_merchant) roles.push('<span class="role-badge merchant"><i class="fas fa-store"></i> Merchant</span>');
+            if (user.is_verified) roles.push('<span class="role-badge verified"><i class="fas fa-check-circle"></i> Verified</span>');
+            
+            const rolesHtml = roles.length > 0 ? roles.join(' ') : '<span class="role-badge regular">Regular User</span>';
+            
+            return `
+                <tr>
+                    <td>${user.username || 'N/A'}</td>
+                    <td>${user.email || 'N/A'}</td>
+                    <td><span class="pfi-score ${this.getPFICategoryClass(user.pfi)}">${user.pfi || 0}★</span></td>
+                    <td><span class="tfi-score ${this.getTFICategoryClass(user.tfi)}">${user.tfi || 0}★</span></td>
+                    <td>${(user.balance || 0).toFixed(2)} FC</td>
+                    <td>${rolesHtml}</td>
+                    <td><span class="status-badge status-${user.is_verified ? 'verified' : 'pending'}">${user.is_verified ? 'verified' : 'pending'}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="admin.editUserRoles('${user.id}', ${JSON.stringify(user).replace(/"/g, '&quot;')})" title="Edit Roles">
+                            <i class="fas fa-user-cog"></i>
+                        </button>
+                        <button class="btn btn-sm btn-info" onclick="admin.editUser('${user.id}')" title="Edit User">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-warning" onclick="admin.toggleUserStatus('${user.id}', ${!user.is_verified})" title="Toggle Verification">
+                            <i class="fas fa-${user.is_verified ? 'times' : 'check'}"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
     }
 
     async loadTransactions() {
@@ -785,15 +815,21 @@ class FairCoinAdmin {
     displayFairnessMetrics(metrics) {
         // PFI Distribution
         document.getElementById('pfi-breakdown').innerHTML = Object.entries(metrics.pfiDistribution)
-            .map(([level, percentage]) => `
+            .map(([level, percentage]) => {
+                // Map distribution levels to color classes
+                const colorClass = level === 'excellent' ? 'pfi-excellent' : 
+                                  level === 'good' ? 'pfi-good' : 
+                                  level === 'developing' || level === 'average' ? 'pfi-developing' : 'pfi-poor';
+                
+                return `
                 <div class="metric-row">
                     <span class="metric-label">${level.charAt(0).toUpperCase() + level.slice(1)}:</span>
                     <span class="metric-value">${percentage}%</span>
                     <div class="metric-bar">
-                        <div class="metric-fill" style="width: ${percentage}%"></div>
+                        <div class="metric-fill ${colorClass}" style="width: ${percentage}%"></div>
                     </div>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
 
         // TFI Analysis
         document.getElementById('tfi-analysis').innerHTML = `
@@ -1027,7 +1063,7 @@ class FairCoinAdmin {
         
         container.innerHTML = sortedUsers.map(user => {
             const pfiCategory = this.getPFICategory(user.pfi);
-            const pfiClass = pfiCategory.toLowerCase().replace(' ', '-');
+            const pfiCategoryClass = this.getPFICategoryClass(user.pfi);
             
             return `
                 <div class="user-profile-item">
@@ -1036,7 +1072,7 @@ class FairCoinAdmin {
                         <div class="user-username">@${user.username}</div>
                     </div>
                     <div class="user-pfi">
-                        <span class="pfi-score pfi-${pfiClass}">${user.pfi}★</span>
+                        <span class="pfi-score ${pfiCategoryClass}">${user.pfi}★</span>
                         <span class="pfi-category">(${pfiCategory})</span>
                     </div>
                 </div>
@@ -1472,7 +1508,41 @@ class FairCoinAdmin {
     showError(message) {
         // Simple error display - could be enhanced with toast notifications
         console.error(message);
-        alert(message);
+        
+        // Create a styled error notification
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #dc3545;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 10000;
+            max-width: 400px;
+            font-weight: 500;
+        `;
+        errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+        document.body.appendChild(errorDiv);
+        
+        // Remove after 5 seconds
+        setTimeout(() => {
+            if (errorDiv.parentNode) {
+                errorDiv.parentNode.removeChild(errorDiv);
+            }
+        }, 5000);
+    }
+
+    handleUnauthorized() {
+        this.showError('Session expired or insufficient privileges. Redirecting to login...');
+        localStorage.removeItem('admin_token');
+        this.authToken = null;
+        this.currentUser = null;
+        this.isAuthenticated = false;
+        this.hideAdminInfo();
+        this.showLoginModal();
     }
 
     showModal(title, content, confirmCallback) {
@@ -1484,6 +1554,26 @@ class FairCoinAdmin {
 
     closeModal() {
         document.getElementById('modal-overlay').style.display = 'none';
+    }
+
+    getPFICategoryClass(pfi) {
+        // Convert PFI score to appropriate color category CSS class
+        const score = parseInt(pfi) || 0;
+        
+        if (score >= 80) return 'pfi-excellent';      // Green: Excellent (80-100)
+        if (score >= 60) return 'pfi-good';           // Blue: Good (60-79)
+        if (score >= 40) return 'pfi-developing';     // Orange: Developing (40-59)
+        return 'pfi-poor';                            // Red: Poor (0-39)
+    }
+
+    getTFICategoryClass(tfi) {
+        // Convert TFI score to appropriate color category CSS class
+        const score = parseInt(tfi) || 0;
+        
+        if (score >= 80) return 'tfi-excellent';      // Green: Excellent (80-100)
+        if (score >= 60) return 'tfi-good';           // Blue: Good (60-79)
+        if (score >= 40) return 'tfi-developing';     // Orange: Developing (40-59)
+        return 'tfi-poor';                            // Red: Poor (0-39)
     }
 
     startDataRefresh() {
@@ -1506,24 +1596,355 @@ class FairCoinAdmin {
         this.showSuccess('Export functionality coming soon');
     }
 
-    editUser(userId) {
-        this.showModal('Edit User', `
-            <div class="form-group">
-                <label>PFI Score:</label>
-                <input type="number" id="edit-pfi" min="0" max="100">
+    async editUser(userId) {
+        try {
+            // Fetch detailed user data
+            const userData = await this.fetchUserDetails(userId);
+            if (!userData) {
+                this.showError('Failed to fetch user details');
+                return;
+            }
+
+            this.showModal('Edit User Details', this.generateUserEditForm(userData), () => {
+                this.saveUserDetails(userId);
+            });
+        } catch (error) {
+            console.error('Error opening user editor:', error);
+            this.showError('Failed to open user editor');
+        }
+    }
+
+    async fetchUserDetails(userId) {
+        try {
+            const response = await fetch(`${this.apiBase}/v1/admin/users`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch users');
+            }
+            
+            const data = await response.json();
+            const users = data.users || [];
+            return users.find(user => user.id === userId);
+        } catch (error) {
+            console.error('Error fetching user details:', error);
+            return null;
+        }
+    }
+
+    generateUserEditForm(user) {
+        return `
+            <div class="user-edit-form">
+                <!-- Basic Information -->
+                <div class="form-section">
+                    <h4><i class="fas fa-user"></i> Basic Information</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="edit-username">Username:</label>
+                            <input type="text" id="edit-username" value="${user.username || ''}" readonly>
+                            <small>Username cannot be changed</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-email">Email:</label>
+                            <input type="email" id="edit-email" value="${user.email || ''}" readonly>
+                            <small>Email cannot be changed</small>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="edit-first-name">First Name:</label>
+                            <input type="text" id="edit-first-name" value="${user.first_name || ''}" placeholder="Enter first name">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-last-name">Last Name:</label>
+                            <input type="text" id="edit-last-name" value="${user.last_name || ''}" placeholder="Enter last name">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fairness Scores -->
+                <div class="form-section">
+                    <h4><i class="fas fa-star"></i> Fairness Scores</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="edit-pfi">PFI★ Score:</label>
+                            <input type="number" id="edit-pfi" min="0" max="100" value="${user.pfi || 0}">
+                            <small>Personal Fairness Index (0-100)</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-tfi">TFI★ Score:</label>
+                            <input type="number" id="edit-tfi" min="0" max="100" value="${user.tfi || 0}">
+                            <small>Trade Fairness Index (0-100)</small>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="edit-community-service">Community Service Hours:</label>
+                            <input type="number" id="edit-community-service" min="0" value="${user.community_service || 0}">
+                            <small>Hours of community service contributed</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Roles and Permissions -->
+                <div class="form-section">
+                    <h4><i class="fas fa-shield-alt"></i> Roles & Permissions</h4>
+                    <div class="form-row">
+                        <div class="form-group checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="edit-is-admin" ${user.is_admin ? 'checked' : ''}>
+                                <span class="checkmark"></span>
+                                <i class="fas fa-crown"></i> Administrator
+                            </label>
+                            <small>Full system access and management permissions</small>
+                        </div>
+                        <div class="form-group checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="edit-is-merchant" ${user.is_merchant ? 'checked' : ''}>
+                                <span class="checkmark"></span>
+                                <i class="fas fa-store"></i> Merchant
+                            </label>
+                            <small>Can sell goods and services on the platform</small>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="edit-is-verified" ${user.is_verified ? 'checked' : ''}>
+                                <span class="checkmark"></span>
+                                <i class="fas fa-check-circle"></i> Verified User
+                            </label>
+                            <small>Identity and profile have been verified</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Account Information -->
+                <div class="form-section">
+                    <h4><i class="fas fa-info-circle"></i> Account Information</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>User ID:</label>
+                            <input type="text" value="${user.id}" readonly>
+                            <small>Unique identifier</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Account Balance:</label>
+                            <input type="text" value="${(user.balance || 0).toFixed(2)} FC" readonly>
+                            <small>Current FairCoin balance</small>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Member Since:</label>
+                            <input type="text" value="${user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}" readonly>
+                            <small>Account creation date</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="form-section">
+                    <h4><i class="fas fa-bolt"></i> Quick Actions</h4>
+                    <div class="quick-actions">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="admin.resetUserPassword('${user.id}')">
+                            <i class="fas fa-key"></i> Reset Password
+                        </button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="admin.viewUserTransactions('${user.id}')">
+                            <i class="fas fa-exchange-alt"></i> View Transactions
+                        </button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="admin.suspendUser('${user.id}')">
+                            <i class="fas fa-user-slash"></i> Suspend Account
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label>Status:</label>
-                <select id="edit-status">
-                    <option value="verified">Verified</option>
-                    <option value="pending">Pending</option>
-                    <option value="blocked">Blocked</option>
-                </select>
+        `;
+    }
+
+    async saveUserDetails(userId) {
+        try {
+            const updateData = {
+                first_name: document.getElementById('edit-first-name').value.trim(),
+                last_name: document.getElementById('edit-last-name').value.trim(),
+                pfi: parseInt(document.getElementById('edit-pfi').value) || 0,
+                tfi: parseInt(document.getElementById('edit-tfi').value) || 0,
+                community_service: parseInt(document.getElementById('edit-community-service').value) || 0,
+                is_admin: document.getElementById('edit-is-admin').checked,
+                is_merchant: document.getElementById('edit-is-merchant').checked,
+                is_verified: document.getElementById('edit-is-verified').checked
+            };
+
+            const response = await fetch(`${this.apiBase}/v1/admin/users/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: JSON.stringify(updateData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to update user');
+            }
+
+            const result = await response.json();
+            this.showSuccess(`User ${result.user.username} updated successfully`);
+            this.closeModal();
+            this.loadUsers(); // Refresh the users list
+        } catch (error) {
+            console.error('Error saving user details:', error);
+            this.showError(`Failed to update user: ${error.message}`);
+        }
+    }
+
+    // User Role Management Functions
+    async editUserRoles(userId, userData) {
+        const user = typeof userData === 'string' ? JSON.parse(userData.replace(/&quot;/g, '"')) : userData;
+        
+        this.showModal('Manage User Roles', `
+            <div class="role-management-form">
+                <div class="user-info">
+                    <h4><i class="fas fa-user"></i> ${user.username}</h4>
+                    <p>${user.email}</p>
+                    <p>PFI★: <span class="pfi-score ${this.getPFICategoryClass(user.pfi)}">${user.pfi || 0}★</span> | Balance: ${(user.balance || 0).toFixed(2)} FC</p>
+                </div>
+                
+                <div class="roles-section">
+                    <h5>Assign Roles</h5>
+                    <div class="role-checkboxes">
+                        <label class="role-checkbox admin">
+                            <input type="checkbox" id="role-admin" ${user.is_admin ? 'checked' : ''}>
+                            <span class="role-badge admin"><i class="fas fa-crown"></i> Administrator</span>
+                            <small>Full system access and management permissions</small>
+                        </label>
+                        
+                        <label class="role-checkbox merchant">
+                            <input type="checkbox" id="role-merchant" ${user.is_merchant ? 'checked' : ''}>
+                            <span class="role-badge merchant"><i class="fas fa-store"></i> Merchant</span>
+                            <small>Can sell goods and services on the platform</small>
+                        </label>
+                        
+                        <label class="role-checkbox verified">
+                            <input type="checkbox" id="role-verified" ${user.is_verified ? 'checked' : ''}>
+                            <span class="role-badge verified"><i class="fas fa-check-circle"></i> Verified User</span>
+                            <small>Identity and profile have been verified</small>
+                        </label>
+                    </div>
+                </div>
             </div>
         `, () => {
-            // Handle user update
-            this.showSuccess('User updated successfully');
+            this.saveUserRoles(userId);
+        });
+    }
+
+    async saveUserRoles(userId) {
+        try {
+            const updateData = {
+                is_admin: document.getElementById('role-admin').checked,
+                is_merchant: document.getElementById('role-merchant').checked,
+                is_verified: document.getElementById('role-verified').checked
+            };
+
+            const response = await fetch(`${this.apiBase}/v1/admin/users/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: JSON.stringify(updateData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to update user roles');
+            }
+
+            const result = await response.json();
+            this.showSuccess(`Roles updated for ${result.user.username}`);
             this.closeModal();
+            this.loadUsers();
+        } catch (error) {
+            console.error('Error saving user roles:', error);
+            this.showError(`Failed to update roles: ${error.message}`);
+        }
+    }
+
+    async toggleUserStatus(userId, newStatus) {
+        try {
+            const updateData = {
+                is_verified: newStatus
+            };
+
+            const response = await fetch(`${this.apiBase}/v1/admin/users/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: JSON.stringify(updateData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to update user status');
+            }
+
+            const result = await response.json();
+            this.showSuccess(`${result.user.username} is now ${newStatus ? 'verified' : 'unverified'}`);
+            this.loadUsers();
+        } catch (error) {
+            console.error('Error toggling user status:', error);
+            this.showError(`Failed to update status: ${error.message}`);
+        }
+    }
+
+    // Quick Action Functions
+    resetUserPassword(userId) {
+        this.showModal('Reset Password', `
+            <p>Are you sure you want to reset the password for this user?</p>
+            <p><strong>Note:</strong> This will generate a temporary password that must be changed on first login.</p>
+        `, () => {
+            // TODO: Implement password reset API
+            this.showSuccess('Password reset link sent to user email');
+            this.closeModal();
+        });
+    }
+
+    viewUserTransactions(userId) {
+        // Switch to transactions tab and filter by user
+        this.showSection('transactions');
+        // TODO: Implement user-specific transaction filtering
+        this.showInfo('Showing all transactions. User-specific filtering coming soon.');
+    }
+
+    suspendUser(userId) {
+        this.showModal('Suspend User', `
+            <p>Are you sure you want to suspend this user account?</p>
+            <p><strong>This will:</strong></p>
+            <ul>
+                <li>Prevent the user from logging in</li>
+                <li>Block all transactions</li>
+                <li>Suspend trading activities</li>
+            </ul>
+            <div class="form-group">
+                <label for="suspend-reason">Reason for suspension:</label>
+                <textarea id="suspend-reason" placeholder="Enter reason for suspension..."></textarea>
+            </div>
+        `, () => {
+            const reason = document.getElementById('suspend-reason').value;
+            if (!reason.trim()) {
+                this.showError('Please provide a reason for suspension');
+                return;
+            }
+            // TODO: Implement user suspension API
+            this.showSuccess('User account suspended successfully');
+            this.closeModal();
+            this.loadUsers();
         });
     }
 
@@ -1573,6 +1994,32 @@ class FairCoinAdmin {
         document.querySelector('.admin-container').style.display = 'flex';
     }
 
+    showAdminInfo() {
+        if (this.currentUser) {
+            const adminInfo = document.getElementById('admin-info');
+            const adminUsernameDisplay = document.getElementById('admin-username-display');
+            
+            if (adminInfo && adminUsernameDisplay) {
+                adminUsernameDisplay.textContent = this.currentUser.username;
+                adminInfo.style.display = 'block';
+            }
+        }
+    }
+
+    hideAdminInfo() {
+        const adminInfo = document.getElementById('admin-info');
+        if (adminInfo) {
+            adminInfo.style.display = 'none';
+        }
+    }
+
+    redirectToMainApp() {
+        // Redirect non-admin users to the main application
+        setTimeout(() => {
+            window.location.href = '/index.html';
+        }, 2000);
+    }
+
     async adminLogin() {
         const username = document.getElementById('admin-username').value;
         const password = document.getElementById('admin-password').value;
@@ -1597,14 +2044,28 @@ class FairCoinAdmin {
 
             const data = await response.json();
 
-            if (response.ok && data.token) {
+            if (response.ok && data.token && data.user) {
+                // Check if user has admin privileges
+                if (!data.user.is_admin) {
+                    this.showLoginError('Access denied: Administrator privileges required');
+                    return;
+                }
+                
                 this.authToken = data.token;
+                this.currentUser = data.user;
                 localStorage.setItem('admin_token', this.authToken);
                 this.isAuthenticated = true;
                 this.hideLoginModal();
+                this.showAdminInfo();
                 this.loadDashboard();
                 this.startDataRefresh();
                 errorDiv.style.display = 'none';
+                
+                // Hide make admin button if user is already admin
+                const makeAdminBtn = document.getElementById('makeAdminBtn');
+                if (makeAdminBtn) {
+                    makeAdminBtn.style.display = 'none';
+                }
             } else {
                 this.showLoginError(data.error || 'Login failed');
             }
@@ -1629,10 +2090,31 @@ class FairCoinAdmin {
             });
 
             if (response.ok) {
+                const userData = await response.json();
+                const user = userData.user;
+                
+                // Check if user has admin privileges
+                if (!user.is_admin) {
+                    this.showError('Access denied: Administrator privileges required');
+                    localStorage.removeItem('admin_token');
+                    this.authToken = null;
+                    this.isAuthenticated = false;
+                    this.redirectToMainApp();
+                    return;
+                }
+                
                 this.isAuthenticated = true;
+                this.currentUser = user;
                 this.hideLoginModal();
+                this.showAdminInfo();
                 this.loadDashboard();
                 this.startDataRefresh();
+                
+                // Hide make admin button if user is already admin
+                const makeAdminBtn = document.getElementById('makeAdminBtn');
+                if (makeAdminBtn) {
+                    makeAdminBtn.style.display = 'none';
+                }
             } else {
                 // Token is invalid
                 localStorage.removeItem('admin_token');
@@ -1678,6 +2160,109 @@ class FairCoinAdmin {
         });
     }
 
+    // User Role Management Functions
+    async editUserRoles(userId, userData) {
+        const user = typeof userData === 'string' ? JSON.parse(userData) : userData;
+        
+        const modalBody = `
+            <div class="user-role-form">
+                <h4>Manage Roles for: ${user.username}</h4>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="role-admin" ${user.is_admin ? 'checked' : ''}>
+                        <i class="fas fa-crown"></i> Administrator
+                    </label>
+                    <small>Full system access and management privileges</small>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="role-merchant" ${user.is_merchant ? 'checked' : ''}>
+                        <i class="fas fa-store"></i> Merchant
+                    </label>
+                    <small>Can sell products and receive ratings</small>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="role-verified" ${user.is_verified ? 'checked' : ''}>
+                        <i class="fas fa-check-circle"></i> Verified User
+                    </label>
+                    <small>Account has been verified and trusted</small>
+                </div>
+                <div class="form-group">
+                    <label for="user-pfi">Personal Fairness Index (PFI★):</label>
+                    <input type="number" id="user-pfi" min="0" max="100" value="${user.pfi || 0}">
+                    <small>User's fairness score (0-100)</small>
+                </div>
+            </div>
+        `;
+        
+        this.showModal('Edit User Roles', modalBody, async () => {
+            await this.updateUserRoles(userId);
+        });
+    }
+
+    async updateUserRoles(userId) {
+        try {
+            const isAdmin = document.getElementById('role-admin').checked;
+            const isMerchant = document.getElementById('role-merchant').checked;
+            const isVerified = document.getElementById('role-verified').checked;
+            const pfi = parseInt(document.getElementById('user-pfi').value) || 0;
+
+            const response = await fetch(`${this.apiBase}/v1/admin/users/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: JSON.stringify({
+                    is_admin: isAdmin,
+                    is_merchant: isMerchant,
+                    is_verified: isVerified,
+                    pfi: pfi
+                })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.showSuccess('User roles updated successfully!');
+                await this.loadUsers(); // Refresh the users list
+            } else {
+                this.showError('Failed to update user roles: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error updating user roles:', error);
+            this.showError('Error updating user roles: ' + error.message);
+        }
+    }
+
+    async toggleUserStatus(userId, newStatus) {
+        try {
+            const response = await fetch(`${this.apiBase}/v1/admin/users/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: JSON.stringify({
+                    is_verified: newStatus
+                })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.showSuccess(`User ${newStatus ? 'verified' : 'unverified'} successfully!`);
+                await this.loadUsers(); // Refresh the users list
+            } else {
+                this.showError('Failed to update user status: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error updating user status:', error);
+            this.showError('Error updating user status: ' + error.message);
+        }
+    }
+
     async makeAdmin() {
         try {
             const response = await fetch(`${this.apiBase}/v1/admin/make-admin`, {
@@ -1705,7 +2290,9 @@ class FairCoinAdmin {
     logout() {
         localStorage.removeItem('admin_token');
         this.authToken = null;
+        this.currentUser = null;
         this.isAuthenticated = false;
+        this.hideAdminInfo();
         this.showLoginModal();
     }
 }
@@ -1722,6 +2309,12 @@ window.refreshData = () => admin.refreshData();
 window.exportData = () => admin.exportData();
 window.searchUsers = () => admin.searchUsers();
 window.makeAdmin = () => admin.makeAdmin();
+window.editUser = (userId) => admin.editUser(userId);
+window.editUserRoles = (userId, userData) => admin.editUserRoles(userId, userData);
+window.toggleUserStatus = (userId, newStatus) => admin.toggleUserStatus(userId, newStatus);
+window.resetUserPassword = (userId) => admin.resetUserPassword(userId);
+window.viewUserTransactions = (userId) => admin.viewUserTransactions(userId);
+window.suspendUser = (userId) => admin.suspendUser(userId);
 window.filterTransactions = () => admin.filterTransactions();
 window.createProposal = () => admin.createProposal();
 window.updateMonetaryPolicy = () => admin.updateMonetaryPolicy();

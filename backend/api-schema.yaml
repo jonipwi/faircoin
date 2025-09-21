@@ -848,8 +848,8 @@ paths:
     put:
       tags:
         - Admin
-      summary: Update user status
-      description: Update user verification status and PFI (admin only)
+      summary: Update user details
+      description: Update comprehensive user information including personal details, fairness scores, roles, and community service hours (admin only)
       parameters:
         - name: id
           in: path
@@ -865,14 +865,48 @@ paths:
             schema:
               type: object
               properties:
-                is_verified:
-                  type: boolean
-                  example: true
+                first_name:
+                  type: string
+                  example: "John"
+                  description: "User's first name"
+                last_name:
+                  type: string
+                  example: "Doe"
+                  description: "User's last name"
+                email:
+                  type: string
+                  format: email
+                  example: "john.doe@example.com"
+                  description: "User's email address"
                 pfi:
                   type: integer
                   minimum: 0
                   maximum: 100
                   example: 85
+                  description: "Personal Fairness Index (0-100)"
+                tfi:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                  example: 75
+                  description: "Trade Fairness Index (0-100, for merchants)"
+                community_service:
+                  type: integer
+                  minimum: 0
+                  example: 24
+                  description: "Hours of community service performed"
+                is_verified:
+                  type: boolean
+                  example: true
+                  description: "User verification status"
+                is_merchant:
+                  type: boolean
+                  example: false
+                  description: "Merchant status flag"
+                is_admin:
+                  type: boolean
+                  example: false
+                  description: "Admin privileges flag"
       responses:
         '200':
           description: User updated successfully
@@ -884,6 +918,32 @@ paths:
                   message:
                     type: string
                     example: "User updated successfully"
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Admin privileges required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /admin/transactions:
     get:
@@ -987,6 +1047,82 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MonetaryPolicyInfo'
+
+  /admin/users/{id}/make-admin:
+    post:
+      tags:
+        - Admin
+      summary: Grant admin privileges
+      description: Grant admin privileges to a user (super admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Admin privileges granted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Admin privileges granted successfully"
+        '403':
+          description: Insufficient privileges (super admin required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/users/{id}/revoke-admin:
+    post:
+      tags:
+        - Admin
+      summary: Revoke admin privileges
+      description: Revoke admin privileges from a user (super admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Admin privileges revoked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Admin privileges revoked successfully"
+        '403':
+          description: Insufficient privileges (super admin required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
 components:
   securitySchemes:
@@ -1473,6 +1609,10 @@ components:
         is_merchant:
           type: boolean
           example: false
+        is_admin:
+          type: boolean
+          example: false
+          description: "Admin privileges flag"
         community_service:
           type: integer
           example: 24

@@ -110,6 +110,10 @@ type Proposal struct {
 	StartTime    time.Time      `json:"start_time"`
 	EndTime      time.Time      `json:"end_time"`
 	CreatedAt    time.Time      `json:"created_at"`
+
+	// Relations
+	Proposer *User  `json:"proposer,omitempty" gorm:"foreignkey:ProposerID"`
+	Votes    []Vote `json:"votes,omitempty" gorm:"foreignkey:ProposalID"`
 }
 
 // ProposalType defines types of governance proposals
@@ -140,6 +144,9 @@ type Vote struct {
 	Vote        bool      `json:"vote"`                         // true = for, false = against
 	VotingPower float64   `json:"voting_power" gorm:"not null"` // 0.6 * stake_fraction + 0.4 * (PFI/100)
 	CreatedAt   time.Time `json:"created_at"`
+
+	// Relations
+	User *User `json:"user,omitempty" gorm:"foreignkey:UserID"`
 }
 
 // CommunityBasketIndex represents the community basket index for price stability

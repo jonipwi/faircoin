@@ -1,12 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <m                    <button class="btn btn-primary" onclick="refreshData()">
-                        <i class="fas fa-sync"></i> Refresh Data
-                    </button>
-                    <button class="btn btn-warning" onclick="makeAdmin()" id="makeAdminBtn">
-                        <i class="fas fa-crown"></i> Make Me Admin
-                    </button> charset="UTF-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FairCoin Admin Dashboard</title>
     <link rel="stylesheet" href="assets/css/admin.css">
@@ -50,10 +45,20 @@
         <!-- Main Content -->
         <div class="main-content">
             <header class="header">
-                <h1 id="page-title">Dashboard Overview</h1>
+                <div class="header-left">
+                    <h1 id="page-title">Dashboard Overview</h1>
+                    <div class="admin-info" id="admin-info" style="display: none;">
+                        <small style="color: rgba(255,255,255,0.8);">
+                            <i class="fas fa-user-shield"></i> Logged in as: <span id="admin-username-display">Admin</span>
+                        </small>
+                    </div>
+                </div>
                 <div class="header-actions">
                     <button class="btn btn-primary" onclick="refreshData()">
                         <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button class="btn btn-warning" onclick="makeAdmin()" id="makeAdminBtn">
+                        <i class="fas fa-crown"></i> Make Me Admin
                     </button>
                     <button class="btn btn-secondary" onclick="exportData()">
                         <i class="fas fa-download"></i> Export
@@ -147,6 +152,7 @@
                                 <th>PFI★</th>
                                 <th>TFI★</th>
                                 <th>Balance (FC)</th>
+                                <th>Roles</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -515,11 +521,16 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label for="admin-username">Username:</label>
-                    <input type="text" id="admin-username" placeholder="Enter admin username" value="alice123">
+                    <input type="text" id="admin-username" placeholder="Enter admin username" value="admin">
                 </div>
                 <div class="form-group">
                     <label for="admin-password">Password:</label>
                     <input type="password" id="admin-password" placeholder="Enter password" value="password123">
+                </div>
+                <div class="login-info">
+                    <small style="color: #6c757d;">
+                        <i class="fas fa-info-circle"></i> Use admin credentials: admin/password123
+                    </small>
                 </div>
                 <div id="login-error" class="error-message" style="display: none;"></div>
             </div>

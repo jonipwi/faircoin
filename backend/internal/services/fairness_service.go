@@ -62,8 +62,11 @@ func (s *FairnessService) CreateAttestation(userID, attesterID uuid.UUID, attest
 		s.db.Save(attestation)
 	}
 
-	// Recalculate PFI for the user
-	go s.UpdateUserPFI(userID)
+	// Recalculate PFI for the user (synchronously to avoid database locking)
+	if err := s.UpdateUserPFI(userID); err != nil {
+		// Log error but don't fail the attestation creation
+		fmt.Printf("Warning: Failed to update PFI for user %s: %v\n", userID, err)
+	}
 
 	return attestation, nil
 }
@@ -173,33 +176,58 @@ func (s *FairnessService) CreateRating(userID, merchantID uuid.UUID, transaction
 		return nil, fmt.Errorf("failed to create rating: %w", err)
 	}
 
-	// Recalculate TFI for the merchant
-	go s.UpdateMerchantTFI(merchantID)
+	// Recalculate TFI for the merchant (synchronously to avoid database locking)
+	if err := s.UpdateMerchantTFI(merchantID); err != nil {
+		// Log error but don't fail the rating creation
+		fmt.Printf("Warning: Failed to update TFI for merchant %s: %v\n", merchantID, err)
+	}
 
 	return rating, nil
 }
 
 // UpdateMerchantTFI recalculates and updates a merchant's TFI score
 func (s *FairnessService) UpdateMerchantTFI(merchantID uuid.UUID) error {
+	// Use transaction to prevent database locking issues
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
 	var merchant models.User
-	if err := s.db.First(&merchant, "id = ? AND is_merchant = ?", merchantID, true).Error; err != nil {
+	if err := tx.First(&merchant, "id = ? AND is_merchant = ?", merchantID, true).Error; err != nil {
+		tx.Rollback()
 		return fmt.Errorf("merchant not found: %w", err)
 	}
 
 	// Get all ratings
 	var ratings []models.Rating
-	s.db.Where("merchant_id = ?", merchantID).Find(&ratings)
+	if err := tx.Where("merchant_id = ?", merchantID).Find(&ratings).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to get ratings: %w", err)
+	}
 
 	if len(ratings) == 0 {
-		// New merchant starts with base TFI
-		merchant.TFI = 30
+		// New merchant starts with base TFI if not already set
+		if merchant.TFI == 0 {
+			merchant.TFI = 30
+		}
 	} else {
 		// Calculate TFI based on ratings
 		tfi := s.calculateTFIScore(&merchant, ratings)
-		merchant.TFI = int(math.Min(100, math.Max(0, tfi)))
+		merchant.TFI = int(math.Min(100, math.Max(30, tfi))) // Minimum TFI of 30 for merchants with ratings
 	}
 
-	return s.db.Save(&merchant).Error
+	if err := tx.Save(&merchant).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to save merchant: %w", err)
+	}
+
+	return tx.Commit().Error
 }
 
 // calculateTFIScore calculates TFI based on merchant ratings

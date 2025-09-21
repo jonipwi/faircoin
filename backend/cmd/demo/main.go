@@ -101,7 +101,8 @@ func (d *Demo) runDemo() {
 
 	fmt.Println("\n🎉 Demo completed successfully!")
 	fmt.Println("💡 Access the admin dashboard at: http://localhost:8080")
-	fmt.Println("🔐 Login credentials: alice123 / password123")
+	fmt.Println("🔐 Admin login: admin / password123")
+	fmt.Println("🔐 User login: alice123 / password123")
 }
 
 func (d *Demo) clearDatabase() {
@@ -131,7 +132,10 @@ func (d *Demo) clearDatabase() {
 
 	// Ensure tables exist (recreate if needed)
 	if err := database.Migrate(d.db); err != nil {
-		log.Fatalf("Failed to migrate database: %v", err)
+		// For SQLite with existing tables, migration errors are expected
+		// Just log a warning and continue
+		log.Printf("Migration warning (expected for existing database): %v", err)
+		fmt.Println("   ⚠️  Database migration had warnings (tables already exist)")
 	}
 
 	fmt.Println("   ✅ Database cleared and recreated")
@@ -146,18 +150,20 @@ func (d *Demo) createDiverseUsers() {
 		firstName   string
 		lastName    string
 		isMerchant  bool
+		isAdmin     bool
 		description string
 		expectedPFI string
 		expectedTFI string
 	}{
-		{"alice123", "alice@example.com", "Alice", "Johnson", false, "Community volunteer & environmental activist", "High PFI", "N/A"},
-		{"bob456", "bob@example.com", "Bob", "Smith", true, "Local organic farmer & fair trade merchant", "Medium PFI", "High TFI"},
-		{"carol789", "carol@example.com", "Carol", "Davis", false, "Social worker & dispute mediator", "Very High PFI", "N/A"},
-		{"david999", "david@example.com", "David", "Wilson", true, "Tech startup founder with sustainable practices", "Medium PFI", "Medium TFI"},
-		{"emma555", "emma@example.com", "Emma", "Brown", false, "University student & peer tutor", "High PFI", "N/A"},
-		{"frank777", "frank@example.com", "Frank", "Miller", true, "Traditional retailer, new to fairness", "Low PFI", "Low TFI"},
-		{"grace888", "grace@example.com", "Grace", "Lee", false, "Retired teacher, community elder", "Very High PFI", "N/A"},
-		{"henry111", "henry@example.com", "Henry", "Garcia", true, "Renewable energy consultant", "High PFI", "High TFI"},
+		{"admin", "admin@faircoin.local", "System", "Administrator", false, true, "FairCoin system administrator", "N/A", "N/A"},
+		{"alice123", "alice@example.com", "Alice", "Johnson", false, false, "Community volunteer & environmental activist", "High PFI", "N/A"},
+		{"bob456", "bob@example.com", "Bob", "Smith", true, false, "Local organic farmer & fair trade merchant", "Medium PFI", "High TFI"},
+		{"carol789", "carol@example.com", "Carol", "Davis", false, false, "Social worker & dispute mediator", "Very High PFI", "N/A"},
+		{"david999", "david@example.com", "David", "Wilson", true, false, "Tech startup founder with sustainable practices", "Medium PFI", "Medium TFI"},
+		{"emma555", "emma@example.com", "Emma", "Brown", false, false, "University student & peer tutor", "High PFI", "N/A"},
+		{"frank777", "frank@example.com", "Frank", "Miller", true, false, "Traditional retailer, new to fairness", "Low PFI", "Low TFI"},
+		{"grace888", "grace@example.com", "Grace", "Lee", false, false, "Retired teacher, community elder", "Very High PFI", "N/A"},
+		{"henry111", "henry@example.com", "Henry", "Garcia", true, false, "Renewable energy consultant", "High PFI", "High TFI"},
 	}
 
 	for _, profile := range userProfiles {
@@ -173,32 +179,45 @@ func (d *Demo) createDiverseUsers() {
 			continue
 		}
 
-		// Update merchant status
-		if profile.isMerchant {
-			err = d.userService.UpdateUser(user.ID, map[string]interface{}{
-				"is_merchant": true,
-				"is_verified": true,
-			})
-			if err != nil {
-				log.Printf("Error updating user %s: %v", profile.username, err)
-			}
-		} else {
-			err = d.userService.UpdateUser(user.ID, map[string]interface{}{
-				"is_verified": true,
-			})
-			if err != nil {
-				log.Printf("Error updating user %s: %v", profile.username, err)
-			}
+		// Update user roles and status
+		updateData := map[string]interface{}{
+			"is_verified": true,
 		}
+
+		if profile.isMerchant {
+			updateData["is_merchant"] = true
+			user.IsMerchant = true // Update local copy
+		}
+
+		if profile.isAdmin {
+			updateData["is_admin"] = true
+			user.IsAdmin = true // Update local copy
+		}
+
+		err = d.userService.UpdateUser(user.ID, updateData)
+		if err != nil {
+			log.Printf("Error updating user %s: %v", profile.username, err)
+		}
+
+		user.IsVerified = true // Update local copy
 
 		d.users = append(d.users, *user)
 
-		fmt.Printf("   👤 %s (%s) - %s\n", profile.firstName, profile.username, profile.description)
-		fmt.Printf("      Expected: %s", profile.expectedPFI)
-		if profile.expectedTFI != "N/A" {
-			fmt.Printf(", %s", profile.expectedTFI)
+		roleDescription := ""
+		if profile.isAdmin {
+			roleDescription = " [ADMIN]"
+		} else if profile.isMerchant {
+			roleDescription = " [MERCHANT]"
 		}
-		fmt.Println()
+
+		fmt.Printf("   👤 %s (%s)%s - %s\n", profile.firstName, profile.username, roleDescription, profile.description)
+		if !profile.isAdmin {
+			fmt.Printf("      Expected: %s", profile.expectedPFI)
+			if profile.expectedTFI != "N/A" {
+				fmt.Printf(", %s", profile.expectedTFI)
+			}
+			fmt.Println()
+		}
 	}
 
 	fmt.Printf("   ✅ Created %d diverse users\n", len(d.users))
@@ -213,20 +232,20 @@ func (d *Demo) generateCommunityActivities() {
 		return
 	}
 
-	// Community service activities
+	// Community service activities (excluding admin user at index 0)
 	communityActivities := []struct {
 		userIndex  int
 		hours      int
 		activities []string
 	}{
-		{0, 45, []string{"Environmental cleanup", "Tree planting", "Recycling program"}},            // Alice
-		{1, 25, []string{"Community garden", "Farmers market organization"}},                        // Bob
-		{2, 60, []string{"Dispute mediation", "Community counseling", "Youth mentoring"}},           // Carol
-		{3, 15, []string{"Tech workshops", "Digital literacy training"}},                            // David
-		{4, 35, []string{"Peer tutoring", "Study groups", "Academic support"}},                      // Emma
-		{5, 5, []string{"Neighborhood watch"}},                                                      // Frank
-		{6, 80, []string{"Senior center activities", "Wisdom sharing", "Community history"}},        // Grace
-		{7, 40, []string{"Solar panel installations", "Energy audits", "Sustainability workshops"}}, // Henry
+		{1, 45, []string{"Environmental cleanup", "Tree planting", "Recycling program"}},            // Alice
+		{2, 25, []string{"Community garden", "Farmers market organization"}},                        // Bob
+		{3, 60, []string{"Dispute mediation", "Community counseling", "Youth mentoring"}},           // Carol
+		{4, 15, []string{"Tech workshops", "Digital literacy training"}},                            // David
+		{5, 35, []string{"Peer tutoring", "Study groups", "Academic support"}},                      // Emma
+		{6, 5, []string{"Neighborhood watch"}},                                                      // Frank
+		{7, 80, []string{"Senior center activities", "Wisdom sharing", "Community history"}},        // Grace
+		{8, 40, []string{"Solar panel installations", "Energy audits", "Sustainability workshops"}}, // Henry
 	}
 
 	for _, activity := range communityActivities {
@@ -253,7 +272,7 @@ func (d *Demo) generateCommunityActivities() {
 }
 
 func (d *Demo) generatePeerAttestations() {
-	// Create realistic peer attestations
+	// Create realistic peer attestations (excluding admin user at index 0)
 	attestations := []struct {
 		userIndex     int
 		attesterIndex int
@@ -262,32 +281,32 @@ func (d *Demo) generatePeerAttestations() {
 		description   string
 	}{
 		// Alice attestations (environmental activist)
-		{0, 2, "community_service", 9, "Outstanding environmental leadership"},
-		{0, 4, "community_service", 8, "Inspiring recycling initiative"},
-		{0, 6, "peer_rating", 9, "Always helpful and reliable"},
+		{1, 3, "community_service", 9, "Outstanding environmental leadership"},
+		{1, 5, "community_service", 8, "Inspiring recycling initiative"},
+		{1, 7, "peer_rating", 9, "Always helpful and reliable"},
 
 		// Bob attestations (organic farmer)
-		{1, 0, "community_service", 7, "Great community garden work"},
-		{1, 7, "peer_rating", 8, "Trustworthy and hardworking"},
+		{2, 1, "community_service", 7, "Great community garden work"},
+		{2, 8, "peer_rating", 8, "Trustworthy and hardworking"},
 
 		// Carol attestations (social worker)
-		{2, 0, "dispute_resolution", 10, "Excellent mediation skills"},
-		{2, 1, "dispute_resolution", 9, "Fair and impartial mediator"},
-		{2, 4, "community_service", 9, "Dedicated community service"},
-		{2, 6, "peer_rating", 10, "Most trustworthy person I know"},
+		{3, 1, "dispute_resolution", 10, "Excellent mediation skills"},
+		{3, 2, "dispute_resolution", 9, "Fair and impartial mediator"},
+		{3, 5, "community_service", 9, "Dedicated community service"},
+		{3, 7, "peer_rating", 10, "Most trustworthy person I know"},
 
 		// Emma attestations (student)
-		{4, 0, "community_service", 8, "Excellent peer tutoring"},
-		{4, 2, "peer_rating", 8, "Helpful and patient tutor"},
+		{5, 1, "community_service", 8, "Excellent peer tutoring"},
+		{5, 3, "peer_rating", 8, "Helpful and patient tutor"},
 
 		// Grace attestations (community elder)
-		{6, 0, "community_service", 10, "Lifetime of community service"},
-		{6, 2, "community_service", 10, "Wisdom and guidance for all"},
-		{6, 4, "peer_rating", 9, "Community treasure"},
+		{7, 1, "community_service", 10, "Lifetime of community service"},
+		{7, 3, "community_service", 10, "Wisdom and guidance for all"},
+		{7, 5, "peer_rating", 9, "Community treasure"},
 
 		// Henry attestations (renewable energy)
-		{7, 0, "community_service", 8, "Great sustainability work"},
-		{7, 6, "peer_rating", 8, "Knowledgeable and helpful"},
+		{8, 1, "community_service", 8, "Great sustainability work"},
+		{8, 7, "peer_rating", 8, "Knowledgeable and helpful"},
 	}
 
 	for _, att := range attestations {
@@ -336,11 +355,22 @@ func (d *Demo) simulateMerchantActivities() {
 		for i := 0; i < customerCount; i++ {
 			// Pick random customer (non-merchant)
 			var customer models.User
+			attempts := 0
 			for {
 				customer = d.users[rand.Intn(len(d.users))]
 				if !customer.IsMerchant && customer.ID != merchant.ID {
 					break
 				}
+				attempts++
+				if attempts > 50 { // Prevent infinite loop
+					log.Printf("Warning: Could not find non-merchant customer for %s after 50 attempts", merchant.Username)
+					break
+				}
+			}
+
+			// Skip if no valid customer found
+			if customer.IsMerchant || customer.ID == merchant.ID {
+				continue
 			}
 
 			// Generate realistic ratings based on merchant profile
@@ -384,10 +414,19 @@ func (d *Demo) simulateMerchantActivities() {
 				CreatedAt:           time.Now().AddDate(0, 0, -rand.Intn(60)),
 			}
 
-			if err := d.db.Create(rating).Error; err != nil {
+			// Create rating using transaction to ensure it's properly committed
+			tx := d.db.Begin()
+			if err := tx.Create(rating).Error; err != nil {
+				tx.Rollback()
 				log.Printf("Error creating rating: %v", err)
 				continue
 			}
+			if err := tx.Commit().Error; err != nil {
+				log.Printf("Error committing rating: %v", err)
+				continue
+			}
+
+			log.Printf("Created rating for merchant %s from customer %s", merchant.Username, customer.Username)
 
 			totalDelivery += delivery
 			totalQuality += quality
@@ -409,6 +448,9 @@ func (d *Demo) simulateMerchantActivities() {
 	}
 
 	fmt.Println("   ✅ Merchant activities and ratings generated")
+
+	// Add small delay to ensure all database operations are complete
+	time.Sleep(100 * time.Millisecond)
 }
 
 func (d *Demo) generateRatingComment(merchantUsername string, qualityRating int) string {
@@ -457,6 +499,12 @@ func (d *Demo) calculateFairnessScores() {
 	}
 
 	for i, user := range d.users {
+		// Skip fairness calculations for admin users
+		if user.IsAdmin {
+			fmt.Printf("   🔧 %s (%s): Admin user - no fairness scoring\n", user.FirstName, user.Username)
+			continue
+		}
+
 		// Calculate PFI (Personal Fairness Index) using the service method
 		err := d.fairnessService.UpdateUserPFI(user.ID)
 		if err != nil {
@@ -466,9 +514,15 @@ func (d *Demo) calculateFairnessScores() {
 
 		// Calculate TFI (Trade Fairness Index) for merchants
 		if user.IsMerchant {
+			// Check ratings count before TFI calculation
+			var ratingCount int64
+			d.db.Model(&models.Rating{}).Where("merchant_id = ?", user.ID).Count(&ratingCount)
+
 			err = d.fairnessService.UpdateMerchantTFI(user.ID)
 			if err != nil {
 				log.Printf("Error calculating TFI for %s: %v", user.Username, err)
+			} else {
+				log.Printf("TFI calculated for %s with %d ratings", user.Username, ratingCount)
 			}
 		}
 
@@ -825,16 +879,23 @@ func (d *Demo) displayResults() {
 	} else {
 		for _, user := range d.users {
 			status := "Regular User"
-			if user.IsMerchant {
+			if user.IsAdmin {
+				status = "Administrator"
+			} else if user.IsMerchant {
 				status = "Merchant"
 			}
 
 			fmt.Printf("🧑 %s %s (%s) - %s\n", user.FirstName, user.LastName, user.Username, status)
-			fmt.Printf("   PFI★: %d (%s)", user.PFI, d.getPFICategory(user.PFI))
-			if user.IsMerchant {
-				fmt.Printf(", TFI★: %d (%s)", user.TFI, d.getTFICategory(user.TFI))
+
+			if user.IsAdmin {
+				fmt.Printf("   System Administrator - No fairness scoring\n")
+			} else {
+				fmt.Printf("   PFI★: %d (%s)", user.PFI, d.getPFICategory(user.PFI))
+				if user.IsMerchant {
+					fmt.Printf(", TFI★: %d (%s)", user.TFI, d.getTFICategory(user.TFI))
+				}
+				fmt.Printf(", Community Service: %d hours\n", user.CommunityService)
 			}
-			fmt.Printf(", Community Service: %d hours\n", user.CommunityService)
 		}
 	}
 

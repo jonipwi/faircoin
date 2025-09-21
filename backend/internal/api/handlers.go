@@ -770,6 +770,7 @@ func (h *Handler) GetAllUsers(c *gin.Context) {
 			"tfi":               user.TFI,
 			"is_verified":       user.IsVerified,
 			"is_merchant":       user.IsMerchant,
+			"is_admin":          user.IsAdmin,
 			"community_service": user.CommunityService,
 			"created_at":        user.CreatedAt,
 		}
@@ -913,32 +914,110 @@ func (h *Handler) GetRecentActivity(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"activities": activities})
 }
 
-// UpdateUserStatus allows admin to update user verification status
+// UpdateUserStatus allows admin to update user verification status and roles
 func (h *Handler) UpdateUserStatus(c *gin.Context) {
 	userID := c.Param("id")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
+		return
+	}
 
+	// Parse UUID
+	parsedUserID, err := uuid.Parse(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	// Parse request body
 	var req struct {
-		IsVerified bool `json:"is_verified"`
-		PFI        int  `json:"pfi"`
+		FirstName        *string `json:"first_name"`
+		LastName         *string `json:"last_name"`
+		IsAdmin          *bool   `json:"is_admin"`
+		IsMerchant       *bool   `json:"is_merchant"`
+		IsVerified       *bool   `json:"is_verified"`
+		PFI              *int    `json:"pfi"`
+		TFI              *int    `json:"tfi"`
+		CommunityService *int    `json:"community_service"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	// Check if user exists
+	var user models.User
+	if err := h.userService.GetDB().Where("id = ?", parsedUserID).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Build update map
+	updates := make(map[string]interface{})
+	if req.FirstName != nil {
+		updates["first_name"] = *req.FirstName
+	}
+	if req.LastName != nil {
+		updates["last_name"] = *req.LastName
+	}
+	if req.IsAdmin != nil {
+		updates["is_admin"] = *req.IsAdmin
+	}
+	if req.IsMerchant != nil {
+		updates["is_merchant"] = *req.IsMerchant
+	}
+	if req.IsVerified != nil {
+		updates["is_verified"] = *req.IsVerified
+	}
+	if req.PFI != nil {
+		updates["pfi"] = *req.PFI
+	}
+	if req.TFI != nil {
+		updates["tfi"] = *req.TFI
+	}
+	if req.CommunityService != nil {
+		updates["community_service"] = *req.CommunityService
+	}
+
+	if len(updates) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No updates provided"})
 		return
 	}
 
 	// Update user
 	if err := h.userService.GetDB().Model(&models.User{}).
-		Where("id = ?", userID).
-		Updates(map[string]interface{}{
-			"is_verified": req.IsVerified,
-			"pfi":         req.PFI,
-		}).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
+		Where("id = ?", parsedUserID).
+		Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to update user",
+			"details": err.Error(),
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "User updated successfully"})
+	// Fetch updated user
+	if err := h.userService.GetDB().Where("id = ?", parsedUserID).First(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch updated user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User updated successfully",
+		"user": gin.H{
+			"id":                user.ID,
+			"username":          user.Username,
+			"email":             user.Email,
+			"first_name":        user.FirstName,
+			"last_name":         user.LastName,
+			"pfi":               user.PFI,
+			"tfi":               user.TFI,
+			"community_service": user.CommunityService,
+			"is_admin":          user.IsAdmin,
+			"is_merchant":       user.IsMerchant,
+			"is_verified":       user.IsVerified,
+		},
+	})
 }
 
 // GetMonetaryPolicyInfo returns current monetary policy information
@@ -1008,10 +1087,22 @@ func (h *Handler) GetTransactionVolume(c *gin.Context) {
 
 // MakeUserAdmin makes the current user an admin (temporary setup method)
 func (h *Handler) MakeUserAdmin(c *gin.Context) {
-	userIDStr, _ := c.Get("user_id")
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// First check if user exists
+	var user models.User
+	if err := h.userService.GetDB().Where("id = ?", userID).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
@@ -1019,12 +1110,16 @@ func (h *Handler) MakeUserAdmin(c *gin.Context) {
 	if err := h.userService.GetDB().Model(&models.User{}).
 		Where("id = ?", userID).
 		Update("is_admin", true).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to make user admin"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to make user admin",
+			"details": err.Error(),
+		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "User is now an admin",
-		"user_id": userID,
+		"message":  "User is now an admin",
+		"user_id":  userID,
+		"username": user.Username,
 	})
 }

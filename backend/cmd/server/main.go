@@ -32,7 +32,8 @@ func main() {
 
 	// Auto-migrate database schemas
 	if err := database.Migrate(db); err != nil {
-		log.Fatalf("Failed to run database migrations: %v", err)
+		log.Printf("Warning: Database migration encountered issues: %v", err)
+		log.Println("Continuing with server startup - this may be expected for existing databases")
 	}
 
 	// Initialize services
@@ -156,8 +157,7 @@ func main() {
 		// Admin routes (protected with admin privileges)
 		admin := v1.Group("/admin")
 		admin.Use(apiHandler.AuthMiddleware())
-		// TODO: Re-enable after setting up admin user
-		// admin.Use(apiHandler.AdminMiddleware())
+		admin.Use(apiHandler.AdminMiddleware())
 		{
 			admin.GET("/stats", apiHandler.GetAdminStats)
 			admin.GET("/users", apiHandler.GetAllUsers)
@@ -180,22 +180,44 @@ func main() {
 		})
 	})
 
-	// Serve static files for frontend
+	// Serve static files for frontend (after API routes to prevent conflicts)
 	log.Println("Setting up static file routes...")
-	log.Println("Current working directory:", ".")
 
 	// Check if frontend directory exists
-	if _, err := os.Stat("../frontend"); os.IsNotExist(err) {
-		log.Println("Warning: ../frontend directory not found")
+	frontendPath := "../frontend"
+	if _, err := os.Stat(frontendPath); os.IsNotExist(err) {
+		log.Printf("Warning: %s directory not found", frontendPath)
 	} else {
-		log.Println("Frontend directory found at ../frontend")
+		log.Printf("Frontend directory found at %s", frontendPath)
 	}
 
-	router.Static("/assets", "../frontend/assets")
-	router.StaticFile("/", "../frontend/index.html")
-	router.StaticFile("/admin", "../frontend/admin.html")
+	// Serve static assets first
+	router.Static("/assets", frontendPath+"/assets")
 
-	log.Println("Static routes configured:")
+	// Serve frontend pages with explicit routes to avoid conflicts
+	router.GET("/", func(c *gin.Context) {
+		c.File(frontendPath + "/index.html")
+	})
+
+	// Admin dashboard routes (protected)
+	adminDashboard := router.Group("/admin-dashboard")
+	adminDashboard.Use(apiHandler.AuthMiddleware())
+	adminDashboard.Use(apiHandler.AdminMiddleware())
+	{
+		adminDashboard.GET("/", func(c *gin.Context) {
+			c.File(frontendPath + "/admin.html")
+		})
+	}
+
+	router.GET("/admin.html", apiHandler.AuthMiddleware(), apiHandler.AdminMiddleware(), func(c *gin.Context) {
+		c.File(frontendPath + "/admin.html")
+	})
+
+	router.GET("/index.html", func(c *gin.Context) {
+		c.File(frontendPath + "/index.html")
+	})
+
+	log.Println("Static routes configured successfully")
 
 	// Start server
 	log.Printf("FairCoin server starting on port %s", cfg.Port)

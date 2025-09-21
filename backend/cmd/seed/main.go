@@ -66,11 +66,19 @@ func main() {
 			continue
 		}
 
-		// Update PFI score
-		err = userService.UpdateUser(user.ID, map[string]interface{}{
+		// Update PFI score and set some users as merchants
+		updateData := map[string]interface{}{
 			"pfi":         testUser.pfi,
 			"is_verified": true,
-		})
+		}
+
+		// Make Carol and Emma merchants for testing
+		if testUser.username == "carol789" || testUser.username == "emma555" {
+			updateData["is_merchant"] = true
+			log.Printf("Setting %s as merchant", testUser.username)
+		}
+
+		err = userService.UpdateUser(user.ID, updateData)
 		if err != nil {
 			log.Printf("Error updating user %s: %v", testUser.username, err)
 		}
@@ -161,6 +169,91 @@ func main() {
 			log.Printf("Error creating fairness reward: %v", err)
 		} else {
 			log.Printf("Created fairness reward: %.2f FC", transaction.Amount)
+		}
+	}
+
+	// Create merchant ratings for TFI calculation
+	log.Println("Creating merchant ratings...")
+
+	// Initialize fairness service for creating ratings
+	fairnessService := services.NewFairnessService(db)
+
+	// Get merchant IDs
+	var merchants []struct {
+		ID       uuid.UUID
+		Username string
+	}
+
+	for i, userID := range userIDs {
+		username := testUsers[i].username
+		if username == "carol789" || username == "emma555" {
+			merchants = append(merchants, struct {
+				ID       uuid.UUID
+				Username string
+			}{userID, username})
+		}
+	}
+
+	// Create ratings for merchants
+	for _, merchant := range merchants {
+		// Create 5-8 ratings per merchant from different users
+		numRatings := 5 + rand.Intn(4) // 5-8 ratings
+
+		for i := 0; i < numRatings; i++ {
+			// Pick a random customer (non-merchant user)
+			var customerID uuid.UUID
+			for {
+				customerIdx := rand.Intn(len(userIDs))
+				customerID = userIDs[customerIdx]
+				customerUsername := testUsers[customerIdx].username
+				// Make sure it's not the merchant rating themselves
+				if customerUsername != merchant.Username {
+					break
+				}
+			}
+
+			// Generate realistic ratings (mostly good with some variation)
+			deliveryRating := 7 + rand.Intn(4)      // 7-10
+			qualityRating := 6 + rand.Intn(5)       // 6-10
+			transparencyRating := 6 + rand.Intn(5)  // 6-10
+			environmentalRating := 5 + rand.Intn(6) // 5-10
+
+			comments := []string{
+				"Great service, very satisfied!",
+				"Good quality products, fast delivery",
+				"Excellent communication throughout",
+				"Professional and reliable merchant",
+				"Will definitely order again",
+			}
+
+			_, err := fairnessService.CreateRating(
+				customerID,
+				merchant.ID,
+				nil, // No specific transaction ID
+				deliveryRating,
+				qualityRating,
+				transparencyRating,
+				environmentalRating,
+				comments[rand.Intn(len(comments))],
+			)
+
+			if err != nil {
+				log.Printf("Error creating rating for merchant %s: %v", merchant.Username, err)
+			} else {
+				log.Printf("Created rating for merchant %s: D:%d Q:%d T:%d E:%d",
+					merchant.Username, deliveryRating, qualityRating, transparencyRating, environmentalRating)
+			}
+		}
+	}
+
+	// Update TFI scores for all merchants
+	log.Println("Updating TFI scores for merchants...")
+	for _, merchant := range merchants {
+		err := fairnessService.UpdateMerchantTFI(merchant.ID)
+		if err != nil {
+			log.Printf("Error updating TFI for merchant %s: %v", merchant.Username, err)
+		} else {
+			log.Printf("Updated TFI for merchant %s", merchant.Username)
 		}
 	}
 
