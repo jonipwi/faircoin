@@ -56,6 +56,10 @@ type Transaction struct {
 	Status      string          `json:"status" gorm:"default:pending"`
 	Metadata    string          `json:"metadata" gorm:"type:text"` // JSON metadata
 	CreatedAt   time.Time       `json:"created_at"`
+
+	// Relations
+	User   *User `json:"user,omitempty" gorm:"foreignkey:UserID"`
+	ToUser *User `json:"to_user,omitempty" gorm:"foreignkey:ToUserID"`
 }
 
 // TransactionType defines the types of transactions

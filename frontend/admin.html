@@ -33,6 +33,9 @@
                 <a href="#fairness" class="nav-item" data-section="fairness">
                     <i class="fas fa-balance-scale"></i> Fairness Metrics
                 </a>
+                <a href="#wallet" class="nav-item" data-section="wallet">
+                    <i class="fas fa-wallet"></i> Wallet
+                </a>
                 <a href="#demo-report" class="nav-item" data-section="demo-report">
                     <i class="fas fa-chart-line"></i> Demo Report
                 </a>
@@ -455,6 +458,153 @@
                 </div>
             </div>
 
+            <!-- Wallet Section -->
+            <div id="wallet" class="content-section">
+                <div class="section-header">
+                    <h2>Wallet Management</h2>
+                </div>
+                
+                <!-- Wallet Overview -->
+                <div class="wallet-overview">
+                    <div class="wallet-card balance-card">
+                        <div class="wallet-icon">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="wallet-info">
+                            <h3>Your Balance</h3>
+                            <div class="balance-amount" id="wallet-balance">Loading...</div>
+                            <div class="balance-usd" id="wallet-balance-usd">≈ $0.00 USD</div>
+                        </div>
+                        <button class="btn btn-primary refresh-btn" onclick="admin.refreshWalletBalance()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="wallet-card actions-card">
+                        <h3>Quick Actions</h3>
+                        <div class="wallet-actions">
+                            <button class="btn-action send-btn" onclick="admin.showSendModal()">
+                                <i class="fas fa-paper-plane"></i>
+                                <span>Send FC</span>
+                            </button>
+                            <button class="btn-action receive-btn" onclick="admin.showReceiveModal()">
+                                <i class="fas fa-download"></i>
+                                <span>Receive FC</span>
+                            </button>
+                            <button class="btn-action history-btn" onclick="admin.refreshTransactionHistory()">
+                                <i class="fas fa-history"></i>
+                                <span>Refresh</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transaction History -->
+                <div class="wallet-section">
+                    <div class="section-title">
+                        <h3>Transaction History</h3>
+                        <div class="transaction-filters">
+                            <select id="tx-filter-type">
+                                <option value="all">All Types</option>
+                                <option value="transfer">Transfers</option>
+                                <option value="fairness_reward">Rewards</option>
+                                <option value="merchant_incentive">Incentives</option>
+                            </select>
+                            <input type="number" id="tx-limit" placeholder="Limit" value="20" min="1" max="100">
+                        </div>
+                    </div>
+                    <div class="transaction-list" id="transaction-history">
+                        <div class="loading-spinner">Loading transactions...</div>
+                    </div>
+                </div>
+
+                <!-- Send FairCoins Modal -->
+                <div id="send-modal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>Send FairCoins</h3>
+                            <span class="close" onclick="admin.hideSendModal()">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <form id="send-form">
+                                <div class="form-group">
+                                    <label for="send-username">Recipient Username:</label>
+                                    <input type="text" id="send-username" required placeholder="Enter username">
+                                    <div class="input-help">Enter the username of the recipient</div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="send-amount">Amount (FC):</label>
+                                    <input type="number" id="send-amount" required step="0.01" min="0.01" placeholder="0.00">
+                                    <div class="input-help">Available: <span id="available-balance">0.00</span> FC</div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="send-description">Description (optional):</label>
+                                    <textarea id="send-description" placeholder="What's this for?"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <div class="transaction-preview" id="tx-preview" style="display: none;">
+                                        <h4>Transaction Preview</h4>
+                                        <div class="preview-item">
+                                            <span>Amount:</span>
+                                            <span id="preview-amount">0.00 FC</span>
+                                        </div>
+                                        <div class="preview-item">
+                                            <span>Fee:</span>
+                                            <span id="preview-fee">0.00 FC</span>
+                                        </div>
+                                        <div class="preview-item total">
+                                            <span>Total:</span>
+                                            <span id="preview-total">0.00 FC</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-secondary" onclick="admin.hideSendModal()">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Send FairCoins</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Receive FairCoins Modal -->
+                <div id="receive-modal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>Receive FairCoins</h3>
+                            <span class="close" onclick="admin.hideReceiveModal()">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <div class="receive-info">
+                                <h4>Your Wallet Information</h4>
+                                <div class="info-item">
+                                    <label>Username:</label>
+                                    <div class="copy-field">
+                                        <span id="receive-username">Loading...</span>
+                                        <button type="button" class="btn-copy" onclick="admin.copyToClipboard('receive-username')">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Wallet ID:</label>
+                                    <div class="copy-field">
+                                        <span id="receive-wallet-id">Loading...</span>
+                                        <button type="button" class="btn-copy" onclick="admin.copyToClipboard('receive-wallet-id')">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="receive-instructions">
+                                    <p>Share your username with others so they can send you FairCoins.</p>
+                                    <p>All transactions are recorded on the FairCoin blockchain for transparency.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- System Settings Section -->
             <div id="system" class="content-section">
                 <div class="section-header">
@@ -500,7 +650,7 @@
 
     <!-- Modals -->
     <div id="modal-overlay" class="modal-overlay">
-        <div class="modal">
+        <div class="modal-content">
             <div class="modal-header">
                 <h3 id="modal-title">Modal Title</h3>
                 <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -516,30 +666,36 @@
     </div>
 
     <!-- Login Modal -->
-    <div id="login-modal" class="modal-overlay" style="display: none;">
-        <div class="modal">
+    <div id="login-modal" class="modal">
+        <div class="modal-content">
             <div class="modal-header">
-                <h3>Admin Login</h3>
+                <h3>FairCoin Admin</h3>
+                <button class="modal-close" onclick="admin.hideLoginModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="form-group">
-                    <label for="admin-username">Username:</label>
-                    <input type="text" id="admin-username" placeholder="Enter admin username" value="admin">
+                <div class="login-welcome">
+                    <h4>Welcome Back!</h4>
+                    <p>Please sign in to access the admin dashboard</p>
                 </div>
                 <div class="form-group">
-                    <label for="admin-password">Password:</label>
-                    <input type="password" id="admin-password" placeholder="Enter password" value="password123">
+                    <label for="admin-username"><i class="fas fa-user"></i> Username</label>
+                    <input type="text" id="admin-username" placeholder="Enter your username" value="admin">
+                </div>
+                <div class="form-group">
+                    <label for="admin-password"><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" id="admin-password" placeholder="Enter your password" value="password123">
                 </div>
                 <div class="login-info">
-                    <small style="color: #6c757d;">
-                        <i class="fas fa-info-circle"></i> Use admin credentials: admin/password123
+                    <small>
+                        <i class="fas fa-info-circle"></i>
+                        For demo purposes, use: <strong>admin</strong> / <strong>password123</strong>
                     </small>
                 </div>
                 <div id="login-error" class="error-message" style="display: none;"></div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary" onclick="adminLogin()">
-                    <i class="fas fa-sign-in-alt"></i> Login
+                    <i class="fas fa-sign-in-alt"></i> Sign In
                 </button>
             </div>
         </div>

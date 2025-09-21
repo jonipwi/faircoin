@@ -64,19 +64,24 @@ class FairCoinAdmin {
             this.debounce(this.searchUsers.bind(this), 300)(e.target.value);
         });
 
-        // Modal close
-        document.querySelector('.modal-overlay')?.addEventListener('click', (e) => {
-            if (e.target.classList.contains('modal-overlay')) {
-                this.closeModal();
+        // Modal close - handle clicking outside modal content (main frontend system)
+        document.addEventListener('click', (e) => {
+            // Check if click is on a modal background (not modal-content)
+            if (e.target.classList.contains('modal')) {
+                e.target.classList.remove('active');
             }
         });
 
         // Login form enter key
         document.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && document.getElementById('login-modal').style.display === 'block') {
+            const loginModal = document.getElementById('login-modal');
+            if (e.key === 'Enter' && loginModal && loginModal.classList.contains('active')) {
                 this.adminLogin();
             }
         });
+
+        // Setup wallet event listeners
+        this.setupWalletEventListeners();
     }
 
     showSection(section) {
@@ -100,6 +105,7 @@ class FairCoinAdmin {
             governance: 'Governance Management',
             monetary: 'Monetary Policy Dashboard',
             fairness: 'Fairness Metrics Analysis',
+            wallet: 'Wallet Management',
             'demo-report': '🌟 FairCoin Demo Success Report',
             system: 'System Settings'
         };
@@ -131,6 +137,9 @@ class FairCoinAdmin {
                 break;
             case 'demo-report':
                 await this.loadDemoReport();
+                break;
+            case 'wallet':
+                await this.loadWallet();
                 break;
             case 'system':
                 await this.loadSystemSettings();
@@ -1520,6 +1529,422 @@ class FairCoinAdmin {
         return 'Developing';
     }
 
+    // Wallet Management Methods
+    async loadWallet() {
+        try {
+            await this.loadWalletBalance();
+            await this.loadTransactionHistory();
+            this.updateReceiveInfo();
+        } catch (error) {
+            console.error('Failed to load wallet:', error);
+            this.showError('Failed to load wallet information');
+        }
+    }
+
+    async loadWalletBalance() {
+        try {
+            const response = await fetch(`${this.apiBase}/v1/wallet/balance`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+
+            if (!response.ok) throw new Error('Failed to fetch balance');
+
+            const wallet = await response.json();
+            const balanceElement = document.getElementById('wallet-balance');
+            const balanceUsdElement = document.getElementById('wallet-balance-usd');
+            const availableBalanceElement = document.getElementById('available-balance');
+
+            if (balanceElement) {
+                balanceElement.textContent = `${wallet.balance.toFixed(2)} FC`;
+            }
+            if (balanceUsdElement) {
+                // Simple conversion rate for demo (1 FC = $0.85)
+                const usdValue = (wallet.balance * 0.85).toFixed(2);
+                balanceUsdElement.textContent = `≈ $${usdValue} USD`;
+            }
+            if (availableBalanceElement) {
+                availableBalanceElement.textContent = wallet.balance.toFixed(2);
+            }
+
+            this.currentBalance = wallet.balance;
+        } catch (error) {
+            console.error('Failed to load wallet balance:', error);
+            this.showError('Failed to load wallet balance');
+        }
+    }
+
+    async refreshWalletBalance() {
+        const refreshBtn = document.querySelector('.refresh-btn');
+        if (refreshBtn) {
+            refreshBtn.style.transform = 'rotate(360deg)';
+            setTimeout(() => {
+                refreshBtn.style.transform = '';
+            }, 500);
+        }
+        await this.loadWalletBalance();
+        this.showMessage('Balance refreshed!', 'success');
+    }
+
+    async loadTransactionHistory() {
+        try {
+            const limit = document.getElementById('tx-limit')?.value || 20;
+            const typeFilter = document.getElementById('tx-filter-type')?.value || 'all';
+            
+            let url = `${this.apiBase}/v1/wallet/history?limit=${limit}`;
+            
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+
+            if (!response.ok) throw new Error('Failed to fetch transaction history');
+
+            const data = await response.json();
+            this.renderTransactionHistory(data.transactions || []);
+        } catch (error) {
+            console.error('Failed to load transaction history:', error);
+            this.showError('Failed to load transaction history');
+        }
+    }
+
+    async refreshTransactionHistory() {
+        const historyBtn = document.querySelector('.history-btn');
+        if (historyBtn) {
+            historyBtn.style.opacity = '0.7';
+            setTimeout(() => {
+                historyBtn.style.opacity = '';
+            }, 500);
+        }
+        await this.loadTransactionHistory();
+        this.showMessage('Transaction history refreshed!', 'success');
+    }
+
+    renderTransactionHistory(transactions) {
+        const container = document.getElementById('transaction-history');
+        
+        if (!transactions || transactions.length === 0) {
+            container.innerHTML = `
+                <div class="loading-spinner">
+                    <i class="fas fa-wallet"></i>
+                    <p>No transactions found</p>
+                    <small>Your transaction history will appear here</small>
+                </div>
+            `;
+            return;
+        }
+
+        const transactionHtml = transactions.map(tx => {
+            const isReceived = this.currentUser && tx.to_user_id === this.currentUser.id;
+            const isSent = this.currentUser && tx.user_id === this.currentUser.id && tx.to_user_id;
+            
+            let txType = 'reward';
+            let icon = 'fas fa-gift';
+            let amountClass = 'positive';
+            let amountPrefix = '+';
+            let title = 'Reward';
+            let description = tx.description || 'System reward';
+
+            if (isSent) {
+                txType = 'send';
+                icon = 'fas fa-arrow-up';
+                amountClass = 'negative';
+                amountPrefix = '-';
+                title = 'Sent';
+                description = tx.description || `Sent to ${tx.to_user?.username || 'Unknown'}`;
+            } else if (isReceived) {
+                txType = 'receive';
+                icon = 'fas fa-arrow-down';
+                amountClass = 'positive';
+                amountPrefix = '+';
+                title = 'Received';
+                description = tx.description || `Received from ${tx.user?.username || 'Unknown'}`;
+            } else if (tx.type === 'fee') {
+                txType = 'fee';
+                icon = 'fas fa-minus';
+                amountClass = 'negative';
+                amountPrefix = '-';
+                title = 'Fee';
+            }
+
+            const date = new Date(tx.created_at).toLocaleDateString();
+            const time = new Date(tx.created_at).toLocaleTimeString();
+
+            return `
+                <div class="transaction-item">
+                    <div class="tx-icon tx-${txType}">
+                        <i class="${icon}"></i>
+                    </div>
+                    <div class="tx-details">
+                        <div class="tx-title">${title}</div>
+                        <div class="tx-description">${description}</div>
+                        <div class="tx-date">${date} at ${time}</div>
+                        <div class="tx-status ${tx.status || 'completed'}">${tx.status || 'completed'}</div>
+                    </div>
+                    <div class="tx-amount ${amountClass}">
+                        ${amountPrefix}${tx.amount.toFixed(2)} FC
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = transactionHtml;
+    }
+
+    showSendModal() {
+        const modal = document.getElementById('send-modal');
+        if (modal) {
+            modal.classList.add('active');
+            // Update available balance
+            const availableElement = document.getElementById('available-balance');
+            if (availableElement && this.currentBalance) {
+                availableElement.textContent = this.currentBalance.toFixed(2);
+            }
+        }
+    }
+
+    hideSendModal() {
+        const modal = document.getElementById('send-modal');
+        if (modal) {
+            modal.classList.remove('active');
+            // Clear form
+            document.getElementById('send-form').reset();
+            document.getElementById('tx-preview').style.display = 'none';
+        }
+    }
+
+    showReceiveModal() {
+        const modal = document.getElementById('receive-modal');
+        if (modal) {
+            modal.classList.add('active');
+        }
+    }
+
+    hideReceiveModal() {
+        const modal = document.getElementById('receive-modal');
+        if (modal) {
+            modal.classList.remove('active');
+        }
+    }
+
+    updateReceiveInfo() {
+        if (this.currentUser) {
+            const usernameElement = document.getElementById('receive-username');
+            const walletIdElement = document.getElementById('receive-wallet-id');
+            
+            if (usernameElement) {
+                usernameElement.textContent = this.currentUser.username;
+            }
+            if (walletIdElement) {
+                walletIdElement.textContent = this.currentUser.id || 'Loading...';
+            }
+        }
+    }
+
+    copyToClipboard(elementId) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            const text = element.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                this.showMessage('Copied to clipboard!', 'success');
+            }).catch(() => {
+                this.showMessage('Failed to copy to clipboard', 'error');
+            });
+        }
+    }
+
+    async handleSendTransaction(event) {
+        event.preventDefault();
+        
+        const username = document.getElementById('send-username').value.trim();
+        const amount = parseFloat(document.getElementById('send-amount').value);
+        const description = document.getElementById('send-description').value.trim();
+
+        // Enhanced validation
+        if (!username || username.length < 3) {
+            this.showError('Please enter a valid username (minimum 3 characters)');
+            return;
+        }
+
+        if (!amount || amount <= 0 || isNaN(amount)) {
+            this.showError('Please enter a valid amount greater than 0');
+            return;
+        }
+
+        if (amount < 0.01) {
+            this.showError('Minimum transfer amount is 0.01 FC');
+            return;
+        }
+
+        if (amount > this.currentBalance) {
+            this.showError('Insufficient balance for this transaction');
+            return;
+        }
+
+        // Calculate total with fee
+        const fee = amount * 0.001;
+        const total = amount + fee;
+        
+        if (total > this.currentBalance) {
+            this.showError(`Insufficient balance. Total with fee: ${total.toFixed(4)} FC, Available: ${this.currentBalance.toFixed(2)} FC`);
+            return;
+        }
+
+        // Confirmation for large amounts
+        if (amount > 100) {
+            if (!confirm(`You are about to send ${amount.toFixed(2)} FC to ${username}. Are you sure?`)) {
+                return;
+            }
+        }
+
+        // Prevent sending to self
+        if (this.currentUser && username.toLowerCase() === this.currentUser.username.toLowerCase()) {
+            this.showError('You cannot send FairCoins to yourself');
+            return;
+        }
+
+        // Rate limiting check
+        const now = Date.now();
+        if (this.lastTransactionTime && (now - this.lastTransactionTime) < 5000) {
+            this.showError('Please wait 5 seconds between transactions');
+            return;
+        }
+
+        // Disable submit button during processing
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Sending...';
+
+        try {
+            const response = await fetch(`${this.apiBase}/v1/wallet/send`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: JSON.stringify({
+                    to_username: username,
+                    amount: amount,
+                    description: description
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Transfer failed');
+            }
+
+            const result = await response.json();
+            this.lastTransactionTime = now;
+            this.hideSendModal();
+            this.showMessage(`Successfully sent ${amount.toFixed(2)} FC to ${username}!`, 'success');
+            
+            // Refresh balance and transaction history
+            await this.loadWalletBalance();
+            await this.loadTransactionHistory();
+            
+        } catch (error) {
+            console.error('Send transaction failed:', error);
+            let errorMessage = 'Transfer failed';
+            
+            if (error.message.includes('not found')) {
+                errorMessage = `User "${username}" not found`;
+            } else if (error.message.includes('balance')) {
+                errorMessage = 'Insufficient balance';
+            } else if (error.message.includes('network')) {
+                errorMessage = 'Network error - please try again';
+            } else {
+                errorMessage = error.message;
+            }
+            
+            this.showError(errorMessage);
+        } finally {
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    }
+
+    setupWalletEventListeners() {
+        // Send form submission
+        const sendForm = document.getElementById('send-form');
+        if (sendForm) {
+            sendForm.addEventListener('submit', this.handleSendTransaction.bind(this));
+        }
+
+        // Amount input change for preview
+        const amountInput = document.getElementById('send-amount');
+        if (amountInput) {
+            amountInput.addEventListener('input', this.updateTransactionPreview.bind(this));
+        }
+
+        // Transaction filter changes
+        const typeFilter = document.getElementById('tx-filter-type');
+        const limitInput = document.getElementById('tx-limit');
+        
+        if (typeFilter) {
+            typeFilter.addEventListener('change', this.loadTransactionHistory.bind(this));
+        }
+        if (limitInput) {
+            limitInput.addEventListener('change', this.loadTransactionHistory.bind(this));
+        }
+
+        // Close modals when clicking outside
+        window.addEventListener('click', (event) => {
+            const sendModal = document.getElementById('send-modal');
+            const receiveModal = document.getElementById('receive-modal');
+            
+            if (event.target === sendModal) {
+                this.hideSendModal();
+            }
+            if (event.target === receiveModal) {
+                this.hideReceiveModal();
+            }
+        });
+    }
+
+    updateTransactionPreview() {
+        const amountInput = document.getElementById('send-amount');
+        const amount = parseFloat(amountInput.value);
+        const preview = document.getElementById('tx-preview');
+        
+        // Clear any previous validation styling
+        amountInput.classList.remove('error', 'warning');
+        
+        if (amount && amount > 0 && !isNaN(amount)) {
+            const fee = amount * 0.001; // 0.1% fee
+            const total = amount + fee;
+            
+            // Validation styling
+            if (amount < 0.01) {
+                amountInput.classList.add('error');
+            } else if (total > this.currentBalance) {
+                amountInput.classList.add('error');
+            } else if (amount > this.currentBalance * 0.8) {
+                amountInput.classList.add('warning');
+            }
+            
+            document.getElementById('preview-amount').textContent = `${amount.toFixed(2)} FC`;
+            document.getElementById('preview-fee').textContent = `${fee.toFixed(4)} FC`;
+            document.getElementById('preview-total').textContent = `${total.toFixed(4)} FC`;
+            
+            // Show insufficient balance warning
+            if (total > this.currentBalance) {
+                document.getElementById('preview-total').innerHTML = `
+                    ${total.toFixed(4)} FC 
+                    <span style="color: #e74c3c; font-size: 12px;">(Insufficient balance)</span>
+                `;
+            }
+            
+            preview.style.display = 'block';
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+
     async loadSystemSettings() {
         // Load current system settings
         const settings = {
@@ -1576,6 +2001,47 @@ class FairCoinAdmin {
         }, 5000);
     }
 
+    showMessage(message, type = 'info') {
+        const colors = {
+            success: '#28a745',
+            error: '#dc3545',
+            info: '#17a2b8',
+            warning: '#ffc107'
+        };
+        
+        const icons = {
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-circle',
+            info: 'fas fa-info-circle',
+            warning: 'fas fa-exclamation-triangle'
+        };
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${colors[type] || colors.info};
+            color: ${type === 'warning' ? '#212529' : 'white'};
+            padding: 15px 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 10000;
+            max-width: 400px;
+            font-weight: 500;
+        `;
+        messageDiv.innerHTML = `<i class="${icons[type] || icons.info}"></i> ${message}`;
+        document.body.appendChild(messageDiv);
+        
+        // Remove after 3-5 seconds depending on type
+        const timeout = type === 'error' ? 5000 : 3000;
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.parentNode.removeChild(messageDiv);
+            }
+        }, timeout);
+    }
+
     handleUnauthorized() {
         this.showError('Session expired or insufficient privileges. Redirecting to login...');
         localStorage.removeItem('admin_token');
@@ -1625,11 +2091,41 @@ class FairCoinAdmin {
         document.getElementById('modal-title').textContent = title;
         document.getElementById('modal-body').innerHTML = content;
         document.getElementById('modal-confirm').onclick = confirmCallback;
-        document.getElementById('modal-overlay').style.display = 'block';
+        document.getElementById('modal-overlay').classList.add('show');
     }
 
     closeModal() {
-        document.getElementById('modal-overlay').style.display = 'none';
+        // Close any open modals using main frontend system
+        const modals = document.querySelectorAll('.modal.active');
+        modals.forEach(modal => {
+            modal.classList.remove('active');
+        });
+        
+        // Also handle legacy modal-overlay if it exists
+        const modalOverlay = document.getElementById('modal-overlay');
+        if (modalOverlay) {
+            modalOverlay.classList.remove('show');
+            // Clear any inline styles that might interfere
+            modalOverlay.style.display = '';
+        }
+    }
+
+    // Debug utility to check modal state
+    debugModals() {
+        console.log('=== Modal Debug Info ===');
+        const allModals = document.querySelectorAll('.modal');
+        allModals.forEach(modal => {
+            const computedStyle = window.getComputedStyle(modal);
+            console.log(`Modal ${modal.id}:`, {
+                display: computedStyle.display,
+                position: computedStyle.position,
+                zIndex: computedStyle.zIndex,
+                classes: modal.className,
+                visible: modal.classList.contains('active'),
+                rect: modal.getBoundingClientRect()
+            });
+        });
+        console.log('=====================');
     }
 
     getPFICategoryClass(pfi) {
@@ -2094,13 +2590,37 @@ class FairCoinAdmin {
 
     // Authentication methods
     showLoginModal() {
-        document.getElementById('login-modal').style.display = 'block';
-        document.querySelector('.admin-container').style.display = 'none';
+        // Ensure DOM is ready before accessing elements
+        setTimeout(() => {
+            const loginModal = document.getElementById('login-modal');
+            const adminContainer = document.querySelector('.admin-container');
+            
+            if (loginModal) {
+                // Use main frontend modal system
+                loginModal.classList.add('active');
+                console.log('Login modal shown');
+            } else {
+                console.error('Login modal element not found!');
+            }
+            
+            if (adminContainer) {
+                adminContainer.style.display = 'none';
+            }
+        }, 100);
     }
 
     hideLoginModal() {
-        document.getElementById('login-modal').style.display = 'none';
-        document.querySelector('.admin-container').style.display = 'flex';
+        const loginModal = document.getElementById('login-modal');
+        const adminContainer = document.querySelector('.admin-container');
+        
+        if (loginModal) {
+            // Use main frontend modal system
+            loginModal.classList.remove('active');
+        }
+        
+        if (adminContainer) {
+            adminContainer.style.display = 'flex';
+        }
     }
 
     showAdminInfo() {
@@ -2162,8 +2682,13 @@ class FairCoinAdmin {
         
         console.log('Checking initial auth - Path:', currentPath, 'Is Admin Route:', isAdminRoute, 'Has Token:', !!this.authToken);
         
-        if (isAdminRoute && !this.authToken) {
-            this.handleAutoLogout('Please login to access the admin dashboard');
+        if (isAdminRoute && this.authToken) {
+            // If we have a token, validate it (mark as initial check)
+            this.validateToken(true);
+        } else if (isAdminRoute && !this.authToken) {
+            // If no token on admin route, just show login modal (don't trigger auto-logout)
+            console.log('No token found - showing login modal');
+            this.showLoginModal();
         }
     }
 
@@ -2228,10 +2753,17 @@ class FairCoinAdmin {
         errorDiv.style.display = 'block';
     }
 
-    async validateToken() {
+    async validateToken(isInitialCheck = false) {
         if (!this.authToken) {
-            this.handleAutoLogout('No authentication token found');
-            return;
+            if (isInitialCheck) {
+                // On initial page load, just show login modal
+                this.showLoginModal();
+                return;
+            } else {
+                // On subsequent validations, trigger auto-logout
+                this.handleAutoLogout('No authentication token found');
+                return;
+            }
         }
 
         try {
@@ -2267,13 +2799,28 @@ class FairCoinAdmin {
                     makeAdminBtn.style.display = 'none';
                 }
             } else if (response.status === 401) {
-                this.handleAutoLogout('Authentication token expired');
+                if (isInitialCheck) {
+                    // On initial check, clear invalid token and show login modal
+                    localStorage.removeItem('admin_token');
+                    this.authToken = null;
+                    this.showLoginModal();
+                } else {
+                    this.handleAutoLogout('Authentication token expired');
+                }
             } else {
-                this.handleAutoLogout('Failed to validate authentication');
+                if (isInitialCheck) {
+                    this.showLoginModal();
+                } else {
+                    this.handleAutoLogout('Failed to validate authentication');
+                }
             }
         } catch (error) {
             console.error('Token validation error:', error);
-            this.handleAutoLogout('Network error during authentication');
+            if (isInitialCheck) {
+                this.showLoginModal();
+            } else {
+                this.handleAutoLogout('Network error during authentication');
+            }
         }
     }
 
@@ -2464,30 +3011,40 @@ class FairCoinAdmin {
 window.admin = null;
 
 // Authentication functions
-window.adminLogin = () => admin.adminLogin();
-window.logout = () => admin.logout();
+window.adminLogin = () => admin?.adminLogin();
+window.logout = () => admin?.logout();
+
+// Wallet modal functions
+window.showSendModal = () => admin?.showSendModal();
+window.hideSendModal = () => admin?.hideSendModal();
+window.showReceiveModal = () => admin?.showReceiveModal();
+window.hideReceiveModal = () => admin?.hideReceiveModal();
+window.refreshWalletBalance = () => admin?.refreshWalletBalance();
+window.refreshTransactionHistory = () => admin?.refreshTransactionHistory();
+window.copyToClipboard = (elementId) => admin?.copyToClipboard(elementId);
+window.hideLoginModal = () => admin?.hideLoginModal();
 
 // Action functions
-window.refreshData = () => admin.refreshData();
-window.exportData = () => admin.exportData();
-window.searchUsers = () => admin.searchUsers();
-window.makeAdmin = () => admin.makeAdmin();
-window.editUser = (userId) => admin.editUser(userId);
-window.editUserRoles = (userId, userData) => admin.editUserRoles(userId, userData);
-window.toggleUserStatus = (userId, newStatus) => admin.toggleUserStatus(userId, newStatus);
-window.resetUserPassword = (userId) => admin.resetUserPassword(userId);
-window.viewUserTransactions = (userId) => admin.viewUserTransactions(userId);
-window.suspendUser = (userId) => admin.suspendUser(userId);
-window.filterTransactions = () => admin.filterTransactions();
-window.createProposal = () => admin.createProposal();
-window.updateMonetaryPolicy = () => admin.updateMonetaryPolicy();
-window.saveSystemSettings = () => admin.saveSystemSettings();
-window.backupDatabase = () => admin.backupDatabase();
-window.viewLogs = () => admin.viewLogs();
-window.resetSystem = () => admin.resetSystem();
-window.refreshDemoData = () => admin.loadDemoReport();
-window.runNewDemo = () => admin.runNewDemo();
-window.closeModal = () => admin.closeModal();
+window.refreshData = () => admin?.refreshData();
+window.exportData = () => admin?.exportData();
+window.searchUsers = () => admin?.searchUsers();
+window.makeAdmin = () => admin?.makeAdmin();
+window.editUser = (userId) => admin?.editUser(userId);
+window.editUserRoles = (userId, userData) => admin?.editUserRoles(userId, userData);
+window.toggleUserStatus = (userId, newStatus) => admin?.toggleUserStatus(userId, newStatus);
+window.resetUserPassword = (userId) => admin?.resetUserPassword(userId);
+window.viewUserTransactions = (userId) => admin?.viewUserTransactions(userId);
+window.suspendUser = (userId) => admin?.suspendUser(userId);
+window.filterTransactions = () => admin?.filterTransactions();
+window.createProposal = () => admin?.createProposal();
+window.updateMonetaryPolicy = () => admin?.updateMonetaryPolicy();
+window.saveSystemSettings = () => admin?.saveSystemSettings();
+window.backupDatabase = () => admin?.backupDatabase();
+window.viewLogs = () => admin?.viewLogs();
+window.resetSystem = () => admin?.resetSystem();
+window.refreshDemoData = () => admin?.loadDemoReport();
+window.runNewDemo = () => admin?.runNewDemo();
+window.closeModal = () => admin?.closeModal();
 window.confirmModal = () => admin.confirmModal();
 
 // Initialize admin dashboard when DOM is loaded

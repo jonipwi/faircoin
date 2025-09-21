@@ -204,6 +204,9 @@ func main() {
 		c.File(frontendPath + "/admin.html")
 	})
 
+	// Serve assets for admin dashboard
+	router.Static("/admin-dashboard/assets", frontendPath+"/assets")
+
 	router.GET("/admin.html", func(c *gin.Context) {
 		c.File(frontendPath + "/admin.html")
 	})
