@@ -132,6 +132,9 @@ class FairCoinApp {
             case 'merchants':
                 await this.loadMerchants();
                 break;
+            case 'fairness':
+                await this.setupFairnessMetrics();
+                break;
             case 'governance':
                 if (this.token) {
                     await this.loadGovernanceData();
@@ -733,6 +736,368 @@ class FairCoinApp {
             return (num / 1000).toFixed(1) + 'K';
         }
         return num.toString();
+    }
+
+    // ===============================
+    // FAIRNESS METRICS FUNCTIONALITY
+    // ===============================
+
+    async setupFairnessMetrics() {
+        // Setup event listeners for fairness metrics
+        const refreshBtn = document.getElementById('refreshMetricsBtn');
+        const timeRangeSelect = document.getElementById('metricsTimeRange');
+        
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => this.refreshFairnessMetrics());
+        }
+        
+        if (timeRangeSelect) {
+            timeRangeSelect.addEventListener('change', () => this.loadMetricsHistory());
+        }
+
+        // Load initial fairness metrics data
+        await this.loadFairnessMetrics();
+        await this.loadMetricsHistory();
+    }
+
+    async loadFairnessMetrics() {
+        try {
+            this.showLoading();
+            
+            // Load comprehensive fairness metrics
+            const response = await fetch(`${this.apiUrl}/metrics/fairness`, {
+                headers: this.getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to load fairness metrics');
+            }
+            
+            const data = await response.json();
+            
+            // Update PFI distribution
+            this.updatePFIDistribution(data.pfi_distribution);
+            
+            // Update TFI analysis
+            this.updateTFIAnalysis(data.tfi_analysis);
+            
+            // Update top merchants
+            this.updateTopMerchants(data.top_merchants);
+            
+            // Update CBI data
+            this.updateCBIData(data.cbi);
+            
+            // Update alerts
+            this.updateFairnessAlerts(data.alerts);
+            
+        } catch (error) {
+            console.error('Error loading fairness metrics:', error);
+            this.showToast('Failed to load fairness metrics', 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    updatePFIDistribution(distribution) {
+        if (!distribution) return;
+        
+        const total = distribution.total_users || 1;
+        
+        // Update excellent segment
+        const excellent = distribution.excellent || { count: 0, percentage: 0 };
+        document.getElementById('pfiExcellentPct').textContent = `${excellent.percentage}%`;
+        document.getElementById('pfiExcellentCount').textContent = `${excellent.count} users`;
+        
+        // Update good segment
+        const good = distribution.good || { count: 0, percentage: 0 };
+        document.getElementById('pfiGoodPct').textContent = `${good.percentage}%`;
+        document.getElementById('pfiGoodCount').textContent = `${good.count} users`;
+        
+        // Update average segment
+        const average = distribution.average || { count: 0, percentage: 0 };
+        document.getElementById('pfiAveragePct').textContent = `${average.percentage}%`;
+        document.getElementById('pfiAverageCount').textContent = `${average.count} users`;
+        
+        // Update poor segment
+        const poor = distribution.poor || { count: 0, percentage: 0 };
+        document.getElementById('pfiPoorPct').textContent = `${poor.percentage}%`;
+        document.getElementById('pfiPoorCount').textContent = `${poor.count} users`;
+    }
+
+    updateTFIAnalysis(analysis) {
+        if (!analysis) return;
+        
+        document.getElementById('tfiAverageRating').textContent = `${analysis.average_rating || 0}/5.0`;
+        document.getElementById('tfiTotalRatings').textContent = this.formatNumber(analysis.total_ratings || 0);
+        document.getElementById('tfiTotalMerchants').textContent = this.formatNumber(analysis.total_merchants || 0);
+    }
+
+    updateTopMerchants(merchants) {
+        const tbody = document.getElementById('topMerchantsBody');
+        if (!tbody || !merchants) return;
+        
+        tbody.innerHTML = '';
+        
+        if (merchants.length === 0) {
+            tbody.innerHTML = `
+                <div class="no-merchants">
+                    <p>No merchant data available</p>
+                </div>
+            `;
+            return;
+        }
+        
+        merchants.forEach(merchant => {
+            const row = document.createElement('div');
+            row.className = 'merchant-row';
+            
+            // Generate star rating
+            const stars = this.generateStarRating(merchant.average_rating);
+            
+            row.innerHTML = `
+                <div class="td rank">#${merchant.rank}</div>
+                <div class="td merchant">
+                    <div class="merchant-name">${merchant.first_name} ${merchant.last_name}</div>
+                    <div class="merchant-username">@${merchant.username}</div>
+                </div>
+                <div class="td"><span class="tfi-score">${merchant.tfi}</span></div>
+                <div class="td">
+                    <div class="rating-stars">${stars}</div>
+                    <div class="rating-value">${merchant.average_rating.toFixed(1)}</div>
+                </div>
+                <div class="td">${this.formatNumber(merchant.total_ratings)}</div>
+            `;
+            
+            tbody.appendChild(row);
+        });
+    }
+
+    generateStarRating(rating) {
+        const fullStars = Math.floor(rating);
+        const hasHalfStar = rating % 1 >= 0.5;
+        let stars = '';
+        
+        for (let i = 0; i < fullStars; i++) {
+            stars += '<i class="fas fa-star"></i>';
+        }
+        
+        if (hasHalfStar) {
+            stars += '<i class="fas fa-star-half-alt"></i>';
+        }
+        
+        const emptyStars = 5 - Math.ceil(rating);
+        for (let i = 0; i < emptyStars; i++) {
+            stars += '<i class="far fa-star"></i>';
+        }
+        
+        return stars;
+    }
+
+    updateCBIData(cbi) {
+        if (!cbi) return;
+        
+        // Update main CBI value
+        document.getElementById('cbiCurrentValue').textContent = cbi.current_cbi || 100;
+        
+        // Update trend
+        const trendElement = document.getElementById('cbiTrend');
+        const trend = cbi.trend || 'stable';
+        
+        trendElement.className = `cbi-trend ${trend}`;
+        trendElement.innerHTML = this.getTrendIcon(trend) + `<span>${trend}</span>`;
+        
+        // Update components
+        const components = cbi.components || {};
+        this.updateCBIComponent('food', components.food || 100);
+        this.updateCBIComponent('energy', components.energy || 100);
+        this.updateCBIComponent('labor', components.labor || 100);
+        this.updateCBIComponent('housing', components.housing || 100);
+    }
+
+    getTrendIcon(trend) {
+        switch (trend) {
+            case 'increasing':
+                return '<i class="fas fa-arrow-up"></i>';
+            case 'decreasing':
+                return '<i class="fas fa-arrow-down"></i>';
+            default:
+                return '<i class="fas fa-minus"></i>';
+        }
+    }
+
+    updateCBIComponent(component, value) {
+        const fillElement = document.getElementById(`cbi${component.charAt(0).toUpperCase() + component.slice(1)}Fill`);
+        const valueElement = document.getElementById(`cbi${component.charAt(0).toUpperCase() + component.slice(1)}Val`);
+        
+        if (fillElement) {
+            fillElement.style.width = `${Math.min(100, Math.max(0, value))}%`;
+        }
+        
+        if (valueElement) {
+            valueElement.textContent = value.toFixed(0);
+        }
+    }
+
+    updateFairnessAlerts(alerts) {
+        const alertsContainer = document.getElementById('fairnessAlerts');
+        if (!alertsContainer) return;
+        
+        alertsContainer.innerHTML = '';
+        
+        if (!alerts || alerts.length === 0) {
+            alertsContainer.innerHTML = `
+                <div class="no-alerts">
+                    <i class="fas fa-check-circle"></i>
+                    <h4>All Systems Normal</h4>
+                    <p>No fairness alerts at this time. The system is operating smoothly.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        alerts.forEach(alert => {
+            const alertElement = document.createElement('div');
+            alertElement.className = `alert alert-${alert.severity}`;
+            
+            const icon = this.getAlertIcon(alert.type, alert.severity);
+            
+            alertElement.innerHTML = `
+                <div class="alert-icon">${icon}</div>
+                <div class="alert-content">
+                    <div class="alert-title">${alert.title}</div>
+                    <div class="alert-description">${alert.description}</div>
+                </div>
+                <div class="alert-actions">
+                    <button class="alert-btn" onclick="app.markAlertAsRead('${alert.id}')">Mark Read</button>
+                </div>
+            `;
+            
+            alertsContainer.appendChild(alertElement);
+        });
+    }
+
+    getAlertIcon(type, severity) {
+        const icons = {
+            pfi_decline: 'fas fa-user-times',
+            tfi_decline: 'fas fa-store-slash',
+            cbi_change: 'fas fa-chart-line'
+        };
+        
+        const severityIcons = {
+            low: 'fas fa-info-circle',
+            medium: 'fas fa-exclamation-triangle',
+            high: 'fas fa-exclamation-circle',
+            critical: 'fas fa-times-circle'
+        };
+        
+        return `<i class="${icons[type] || severityIcons[severity] || 'fas fa-bell'}"></i>`;
+    }
+
+    async markAlertAsRead(alertId) {
+        try {
+            const response = await fetch(`${this.apiUrl}/metrics/alerts/${alertId}/read`, {
+                method: 'POST',
+                headers: this.getAuthHeaders()
+            });
+            
+            if (response.ok) {
+                this.showToast('Alert marked as read', 'success');
+                // Reload alerts
+                await this.loadFairnessMetrics();
+            } else {
+                throw new Error('Failed to mark alert as read');
+            }
+        } catch (error) {
+            console.error('Error marking alert as read:', error);
+            this.showToast('Failed to mark alert as read', 'error');
+        }
+    }
+
+    async loadMetricsHistory() {
+        try {
+            const timeRange = document.getElementById('metricsTimeRange').value || '30';
+            
+            const response = await fetch(`${this.apiUrl}/metrics/history?days=${timeRange}`, {
+                headers: this.getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to load metrics history');
+            }
+            
+            const data = await response.json();
+            this.renderMetricsChart(data.history);
+            
+        } catch (error) {
+            console.error('Error loading metrics history:', error);
+            this.showToast('Failed to load metrics history', 'error');
+        }
+    }
+
+    renderMetricsChart(historyData) {
+        const canvas = document.getElementById('metricsChartCanvas');
+        const container = document.getElementById('metricsChart');
+        
+        if (!canvas || !historyData || historyData.length === 0) {
+            container.innerHTML = `
+                <div style="padding: 2rem; text-align: center; color: #7f8c8d;">
+                    <i class="fas fa-chart-line" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
+                    <p>No historical data available</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Simple chart rendering (you might want to use Chart.js for better charts)
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+        
+        // Draw a simple line chart placeholder
+        ctx.strokeStyle = '#667eea';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        // Sample line drawing
+        for (let i = 0; i < historyData.length; i++) {
+            const x = (i / (historyData.length - 1)) * width;
+            const y = height - (historyData[i].average_tfi / 100) * height;
+            
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+        
+        ctx.stroke();
+        
+        // Add chart.js message
+        ctx.fillStyle = '#7f8c8d';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Chart visualization requires Chart.js library', width / 2, height / 2);
+    }
+
+    async refreshFairnessMetrics() {
+        await this.loadFairnessMetrics();
+        await this.loadMetricsHistory();
+        this.showToast('Fairness metrics refreshed', 'success');
+    }
+
+    getAuthHeaders() {
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        
+        if (this.token) {
+            headers['Authorization'] = `Bearer ${this.token}`;
+        }
+        
+        return headers;
     }
 }
 

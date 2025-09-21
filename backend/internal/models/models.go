@@ -178,6 +178,59 @@ type MonetaryPolicy struct {
 	CreatedAt         time.Time `json:"created_at"`
 }
 
+// FairnessMetrics represents comprehensive fairness metrics for analysis
+type FairnessMetrics struct {
+	ID                  uuid.UUID `json:"id" gorm:"type:varchar(36);primary_key"`
+	Date                string    `json:"date" gorm:"not null;unique"` // Format: "2023-10-15"
+	PFIExcellentCount   int       `json:"pfi_excellent_count" gorm:"default:0"`   // PFI >= 90
+	PFIGoodCount        int       `json:"pfi_good_count" gorm:"default:0"`        // PFI 70-89
+	PFIAverageCount     int       `json:"pfi_average_count" gorm:"default:0"`     // PFI 50-69
+	PFIPoorCount        int       `json:"pfi_poor_count" gorm:"default:0"`        // PFI < 50
+	TotalPFIRatings     int       `json:"total_pfi_ratings" gorm:"default:0"`
+	AverageTFI          float64   `json:"average_tfi" gorm:"default:0"`
+	TotalTFIRatings     int       `json:"total_tfi_ratings" gorm:"default:0"`
+	CBIValue            float64   `json:"cbi_value" gorm:"default:100"`
+	CBIFoodIndex        float64   `json:"cbi_food_index" gorm:"default:100"`
+	CBIEnergyIndex      float64   `json:"cbi_energy_index" gorm:"default:100"`
+	CBILaborIndex       float64   `json:"cbi_labor_index" gorm:"default:100"`
+	CBIHousingIndex     float64   `json:"cbi_housing_index" gorm:"default:100"`
+	CBITrend            string    `json:"cbi_trend" gorm:"default:stable"`
+	TotalUsers          int       `json:"total_users" gorm:"default:0"`
+	TotalMerchants      int       `json:"total_merchants" gorm:"default:0"`
+	TotalTransactions   int       `json:"total_transactions" gorm:"default:0"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
+}
+
+// MerchantRanking represents top merchants based on TFI and ratings
+type MerchantRanking struct {
+	ID            uuid.UUID `json:"id" gorm:"type:varchar(36);primary_key"`
+	MerchantID    uuid.UUID `json:"merchant_id" gorm:"type:varchar(36);not null"`
+	Rank          int       `json:"rank" gorm:"not null"`
+	TFI           int       `json:"tfi" gorm:"not null"`
+	TotalRatings  int       `json:"total_ratings" gorm:"default:0"`
+	AverageRating float64   `json:"average_rating" gorm:"default:0"`
+	Date          string    `json:"date" gorm:"not null"` // Format: "2023-10-15"
+	CreatedAt     time.Time `json:"created_at"`
+	
+	// Relations
+	Merchant *User `json:"merchant,omitempty" gorm:"foreignkey:MerchantID"`
+}
+
+// FairnessAlert represents alerts for significant changes in metrics
+type FairnessAlert struct {
+	ID          uuid.UUID `json:"id" gorm:"type:varchar(36);primary_key"`
+	Type        string    `json:"type" gorm:"not null"`        // "pfi_decline", "tfi_decline", "cbi_change"
+	Severity    string    `json:"severity" gorm:"not null"`    // "low", "medium", "high", "critical"
+	Title       string    `json:"title" gorm:"not null"`
+	Description string    `json:"description" gorm:"type:text;not null"`
+	UserID      *uuid.UUID `json:"user_id" gorm:"type:varchar(36)"` // Optional: specific user affected
+	IsRead      bool      `json:"is_read" gorm:"default:false"`
+	IsResolved  bool      `json:"is_resolved" gorm:"default:false"`
+	CreatedAt   time.Time `json:"created_at"`
+	ResolvedAt  *time.Time `json:"resolved_at"`
+}
+
 // BeforeCreate sets UUID for models
 func (u *User) BeforeCreate(scope *gorm.Scope) error {
 	if u.ID == uuid.Nil {
@@ -238,6 +291,27 @@ func (cbi *CommunityBasketIndex) BeforeCreate(scope *gorm.Scope) error {
 func (mp *MonetaryPolicy) BeforeCreate(scope *gorm.Scope) error {
 	if mp.ID == uuid.Nil {
 		mp.ID = uuid.New()
+	}
+	return nil
+}
+
+func (fm *FairnessMetrics) BeforeCreate(scope *gorm.Scope) error {
+	if fm.ID == uuid.Nil {
+		fm.ID = uuid.New()
+	}
+	return nil
+}
+
+func (mr *MerchantRanking) BeforeCreate(scope *gorm.Scope) error {
+	if mr.ID == uuid.Nil {
+		mr.ID = uuid.New()
+	}
+	return nil
+}
+
+func (fa *FairnessAlert) BeforeCreate(scope *gorm.Scope) error {
+	if fa.ID == uuid.Nil {
+		fa.ID = uuid.New()
 	}
 	return nil
 }

@@ -4,6 +4,8 @@ import (
 	"faircoin/internal/config"
 	"faircoin/internal/models"
 	"faircoin/internal/services"
+	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -22,6 +24,7 @@ type Handler struct {
 	fairnessService    *services.FairnessService
 	governanceService  *services.GovernanceService
 	monetaryService    *services.MonetaryService
+	metricsService     *services.MetricsService
 	config             *config.Config
 }
 
@@ -33,6 +36,7 @@ func NewHandler(
 	fairnessService *services.FairnessService,
 	governanceService *services.GovernanceService,
 	monetaryService *services.MonetaryService,
+	metricsService *services.MetricsService,
 	cfg *config.Config,
 ) *Handler {
 	return &Handler{
@@ -42,6 +46,7 @@ func NewHandler(
 		fairnessService:    fairnessService,
 		governanceService:  governanceService,
 		monetaryService:    monetaryService,
+		metricsService:     metricsService,
 		config:             cfg,
 	}
 }
@@ -1121,5 +1126,268 @@ func (h *Handler) MakeUserAdmin(c *gin.Context) {
 		"message":  "User is now an admin",
 		"user_id":  userID,
 		"username": user.Username,
+	})
+}
+
+// ===============================
+// FAIRNESS METRICS API ENDPOINTS
+// ===============================
+
+// GetFairnessMetrics returns comprehensive fairness metrics analysis
+func (h *Handler) GetFairnessMetrics(c *gin.Context) {
+	metrics, err := h.metricsService.GetComprehensiveMetrics()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get fairness metrics"})
+		return
+	}
+
+	c.JSON(http.StatusOK, metrics)
+}
+
+// GetPFIDistributionData returns PFI distribution data
+func (h *Handler) GetPFIDistributionData(c *gin.Context) {
+	distribution, err := h.metricsService.CalculatePFIDistribution()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get PFI distribution"})
+		return
+	}
+
+	c.JSON(http.StatusOK, distribution)
+}
+
+// GetTFIAnalysisData returns TFI analysis data
+func (h *Handler) GetTFIAnalysisData(c *gin.Context) {
+	analysis, err := h.metricsService.CalculateTFIAnalysis()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get TFI analysis"})
+		return
+	}
+
+	c.JSON(http.StatusOK, analysis)
+}
+
+// GetTopMerchantsData returns top merchants by TFI
+func (h *Handler) GetTopMerchantsData(c *gin.Context) {
+	limitStr := c.DefaultQuery("limit", "10")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
+	if limit > 50 {
+		limit = 50 // Cap at 50
+	}
+
+	merchants, err := h.metricsService.GetTopMerchants(limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top merchants"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"top_merchants": merchants,
+		"limit":         limit,
+	})
+}
+
+// GetCommunityBasketIndexData returns CBI data
+func (h *Handler) GetCommunityBasketIndexData(c *gin.Context) {
+	cbi, err := h.metricsService.CalculateCommunityBasketIndex()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get CBI data"})
+		return
+	}
+
+	c.JSON(http.StatusOK, cbi)
+}
+
+// GetMetricsHistory returns historical metrics data for charts
+func (h *Handler) GetMetricsHistory(c *gin.Context) {
+	daysStr := c.DefaultQuery("days", "30")
+	days, err := strconv.Atoi(daysStr)
+	if err != nil || days <= 0 {
+		days = 30
+	}
+	if days > 365 {
+		days = 365 // Cap at 1 year
+	}
+
+	history, err := h.metricsService.GetMetricsHistory(days)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get metrics history"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"history": history,
+		"days":    days,
+	})
+}
+
+// GetFairnessAlerts returns unread fairness alerts
+func (h *Handler) GetFairnessAlerts(c *gin.Context) {
+	alerts, err := h.metricsService.GetUnreadAlerts()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get alerts"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"alerts": alerts,
+		"count":  len(alerts),
+	})
+}
+
+// MarkAlertRead marks a fairness alert as read
+func (h *Handler) MarkAlertRead(c *gin.Context) {
+	alertIDStr := c.Param("id")
+	alertID, err := uuid.Parse(alertIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid alert ID"})
+		return
+	}
+
+	if err := h.metricsService.MarkAlertAsRead(alertID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark alert as read"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Alert marked as read"})
+}
+
+// UpdateMetrics manually triggers metrics update (admin only)
+func (h *Handler) UpdateMetrics(c *gin.Context) {
+	// Update daily metrics
+	if err := h.metricsService.UpdateDailyMetrics(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update daily metrics"})
+		return
+	}
+
+	// Update merchant rankings
+	if err := h.metricsService.UpdateMerchantRankings(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update merchant rankings"})
+		return
+	}
+
+	// Check for alerts
+	if err := h.metricsService.CheckForAlerts(); err != nil {
+		// Log error but don't fail the request
+		fmt.Printf("Warning: Failed to check for alerts: %v\n", err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "Metrics updated successfully",
+		"timestamp": time.Now().Format("2006-01-02 15:04:05"),
+	})
+}
+
+// GetDetailedPFIAnalysis returns detailed PFI analysis for admin
+func (h *Handler) GetDetailedPFIAnalysis(c *gin.Context) {
+	// Get PFI distribution
+	distribution, err := h.metricsService.CalculatePFIDistribution()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get PFI distribution"})
+		return
+	}
+
+	// Get users by PFI ranges for detailed analysis
+	var pfiRanges []struct {
+		Range string                   `json:"range"`
+		Users []map[string]interface{} `json:"users"`
+	}
+
+	ranges := []struct {
+		name string
+		min  int
+		max  int
+	}{
+		{"excellent", 90, 100},
+		{"good", 70, 89},
+		{"average", 50, 69},
+		{"poor", 0, 49},
+	}
+
+	for _, r := range ranges {
+		var users []models.User
+		query := h.userService.GetDB().Where("pfi >= ? AND pfi <= ?", r.min, r.max)
+		if r.max == 100 {
+			query = h.userService.GetDB().Where("pfi >= ?", r.min)
+		}
+		query.Order("pfi DESC").Limit(10).Find(&users)
+
+		var userList []map[string]interface{}
+		for _, user := range users {
+			userList = append(userList, map[string]interface{}{
+				"id":          user.ID,
+				"username":    user.Username,
+				"first_name":  user.FirstName,
+				"last_name":   user.LastName,
+				"pfi":         user.PFI,
+				"is_merchant": user.IsMerchant,
+				"is_verified": user.IsVerified,
+			})
+		}
+
+		pfiRanges = append(pfiRanges, struct {
+			Range string                   `json:"range"`
+			Users []map[string]interface{} `json:"users"`
+		}{
+			Range: r.name,
+			Users: userList,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"distribution": distribution,
+		"pfi_ranges":   pfiRanges,
+	})
+}
+
+// GetDetailedTFIAnalysis returns detailed TFI analysis for admin
+func (h *Handler) GetDetailedTFIAnalysis(c *gin.Context) {
+	// Get TFI analysis
+	analysis, err := h.metricsService.CalculateTFIAnalysis()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get TFI analysis"})
+		return
+	}
+
+	// Get detailed merchant data
+	var merchants []models.User
+	h.userService.GetDB().Where("is_merchant = ?", true).Order("tfi DESC").Find(&merchants)
+
+	var merchantDetails []map[string]interface{}
+	for _, merchant := range merchants {
+		// Get rating count and breakdown
+		var ratingCount int64
+		h.userService.GetDB().Model(&models.Rating{}).Where("merchant_id = ?", merchant.ID).Count(&ratingCount)
+
+		var avgRatings struct {
+			Delivery      float64
+			Quality       float64
+			Transparency  float64
+			Environmental float64
+		}
+		h.userService.GetDB().Model(&models.Rating{}).
+			Where("merchant_id = ?", merchant.ID).
+			Select("AVG(delivery_rating) as delivery, AVG(quality_rating) as quality, AVG(transparency_rating) as transparency, AVG(environmental_rating) as environmental").
+			Scan(&avgRatings)
+
+		merchantDetails = append(merchantDetails, map[string]interface{}{
+			"id":                       merchant.ID,
+			"username":                 merchant.Username,
+			"first_name":               merchant.FirstName,
+			"last_name":                merchant.LastName,
+			"tfi":                      merchant.TFI,
+			"total_ratings":            ratingCount,
+			"avg_delivery_rating":      math.Round(avgRatings.Delivery*100) / 100,
+			"avg_quality_rating":       math.Round(avgRatings.Quality*100) / 100,
+			"avg_transparency_rating":  math.Round(avgRatings.Transparency*100) / 100,
+			"avg_environmental_rating": math.Round(avgRatings.Environmental*100) / 100,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"analysis":         analysis,
+		"merchant_details": merchantDetails,
 	})
 }

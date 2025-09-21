@@ -67,6 +67,9 @@ func Migrate(db *gorm.DB) error {
 			&models.Vote{},
 			&models.CommunityBasketIndex{},
 			&models.MonetaryPolicy{},
+			&models.FairnessMetrics{},
+			&models.MerchantRanking{},
+			&models.FairnessAlert{},
 		}
 
 		for _, table := range tables {
@@ -89,6 +92,9 @@ func Migrate(db *gorm.DB) error {
 			&models.Vote{},
 			&models.CommunityBasketIndex{},
 			&models.MonetaryPolicy{},
+			&models.FairnessMetrics{},
+			&models.MerchantRanking{},
+			&models.FairnessAlert{},
 		).Error; err != nil {
 			return fmt.Errorf("failed to migrate database: %w", err)
 		}

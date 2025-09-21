@@ -2094,3 +2094,962 @@ body {
         margin: 10% auto;
     }
 }
+
+/* Enhanced Fairness Metrics Styles */
+
+/* Metrics Summary Cards */
+.metrics-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.summary-card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    border-left: 4px solid #3498db;
+}
+
+.summary-card h4 {
+    color: #7f8c8d;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.summary-card .value {
+    color: #2c3e50;
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.summary-card .change {
+    font-size: 12px;
+    color: #27ae60;
+}
+
+.summary-card .change.negative {
+    color: #e74c3c;
+}
+
+/* PFI Distribution Section */
+.pfi-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    margin-bottom: 30px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #f8f9fa;
+    padding-bottom: 15px;
+}
+
+.section-header h3 {
+    color: #2c3e50;
+    font-size: 1.4rem;
+    margin: 0;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin: 20px 0;
+}
+
+.chart-container canvas {
+    max-width: 100%;
+    height: 100% !important;
+}
+
+/* TFI Analysis Section */
+.tfi-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    margin-bottom: 30px;
+}
+
+.tfi-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.tfi-stat {
+    text-align: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.tfi-stat .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #3498db;
+    margin-bottom: 5px;
+}
+
+.tfi-stat .stat-label {
+    font-size: 12px;
+    color: #7f8c8d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* CBI Section */
+.cbi-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    margin-bottom: 30px;
+}
+
+.cbi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.cbi-current {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.cbi-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.cbi-trend {
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 20px;
+    background: #e8f5e8;
+    color: #27ae60;
+}
+
+.cbi-trend.negative {
+    background: #fdeaea;
+    color: #e74c3c;
+}
+
+/* Top Merchants Section */
+.top-merchants-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    margin-bottom: 30px;
+}
+
+.merchant-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    margin-bottom: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.merchant-item:hover {
+    background: #e9ecef;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.merchant-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.rank-badge {
+    width: 30px;
+    height: 30px;
+    background: #3498db;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.merchant-details .merchant-name {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 4px;
+}
+
+.merchant-details .merchant-username {
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.merchant-stats {
+    text-align: right;
+}
+
+.merchant-stats .rating {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f39c12;
+    margin-bottom: 4px;
+}
+
+.merchant-stats .transactions {
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+/* Fairness Alerts Section */
+.alerts-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    margin-bottom: 30px;
+}
+
+.alerts-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.alerts-count {
+    background: #e74c3c;
+    color: white;
+    border-radius: 50%;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-left: 10px;
+}
+
+.alert-item {
+    padding: 15px;
+    margin-bottom: 10px;
+    border-left: 4px solid #3498db;
+    background: #f8f9fa;
+    border-radius: 0 8px 8px 0;
+}
+
+.alert-item.alert-high {
+    border-left-color: #e74c3c;
+}
+
+.alert-item.alert-medium {
+    border-left-color: #f39c12;
+}
+
+.alert-item.alert-low {
+    border-left-color: #3498db;
+}
+
+.alert-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.alert-title {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 4px;
+}
+
+.alert-message {
+    color: #7f8c8d;
+    font-size: 14px;
+    line-height: 1.4;
+    margin-bottom: 8px;
+}
+
+.alert-time {
+    font-size: 12px;
+    color: #95a5a6;
+}
+
+.severity-badge {
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.severity-badge.high {
+    background: #ffeaea;
+    color: #e74c3c;
+}
+
+.severity-badge.medium {
+    background: #fff8e1;
+    color: #f39c12;
+}
+
+.severity-badge.low {
+    background: #e3f2fd;
+    color: #3498db;
+}
+
+/* Metrics History Section */
+.history-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    margin-bottom: 30px;
+}
+
+.history-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+.tab-button {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    color: #7f8c8d;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border-bottom: 3px solid transparent;
+}
+
+.tab-button.active,
+.tab-button:hover {
+    color: #3498db;
+    border-bottom-color: #3498db;
+}
+
+.tab-content {
+    margin-top: 20px;
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+/* Detailed Analytics Section */
+.detailed-analytics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.analytics-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+}
+
+.analytics-card h4 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+}
+
+.analytics-chart {
+    position: relative;
+    height: 250px;
+    margin-top: 15px;
+}
+
+/* Responsive Design for Fairness Metrics */
+@media (max-width: 768px) {
+    .metrics-summary {
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+    
+    .summary-card .value {
+        font-size: 1.5rem;
+    }
+    
+    .detailed-analytics {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-container {
+        height: 250px;
+    }
+    
+    .analytics-chart {
+        height: 200px;
+    }
+    
+    .merchant-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+    }
+    
+    .cbi-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+    }
+    
+    .tfi-stats {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .metrics-summary {
+        grid-template-columns: 1fr;
+    }
+    
+    .history-tabs {
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+    
+    .tab-button {
+        padding: 8px 15px;
+        font-size: 14px;
+    }
+    
+    .tfi-stats {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ====================================
+   INDEX.HTML FAIRNESS METRICS THEME
+   ==================================== */
+
+/* Fairness Metrics Section Header */
+.fairness-header {
+    margin-bottom: 2rem;
+}
+
+.fairness-header h2 {
+    color: #2c3e50;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.fairness-header p {
+    color: #7f8c8d;
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+}
+
+.metrics-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.form-select {
+    padding: 0.5rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: white;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+/* Metrics Section Grid */
+.metrics-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+/* Metrics Cards - Index Theme */
+.metrics-card {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.metrics-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.metrics-card.full-width {
+    grid-column: 1 / -1;
+}
+
+.metrics-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+.metrics-card-header h3 {
+    font-size: 1.5rem;
+    color: #2c3e50;
+    margin: 0;
+}
+
+.metrics-subtitle {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+.metrics-info i {
+    color: #667eea;
+    cursor: help;
+    font-size: 1.2rem;
+}
+
+/* PFI Distribution Styles - Index Theme */
+.pfi-distribution {
+    margin-top: 1rem;
+}
+
+.pfi-chart {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.pfi-segment {
+    padding: 1.5rem;
+    border-radius: 12px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.pfi-segment:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.pfi-segment.excellent {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+}
+
+.pfi-segment.good {
+    background: linear-gradient(135deg, #17a2b8, #20c997);
+    color: white;
+}
+
+.pfi-segment.average {
+    background: linear-gradient(135deg, #ffc107, #fd7e14);
+    color: white;
+}
+
+.pfi-segment.poor {
+    background: linear-gradient(135deg, #dc3545, #e83e8c);
+    color: white;
+}
+
+.pfi-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.pfi-percentage {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+}
+
+.pfi-count {
+    font-size: 0.8rem;
+    opacity: 0.9;
+}
+
+/* TFI Analysis Styles - Index Theme */
+.tfi-analysis {
+    margin-top: 1rem;
+}
+
+.tfi-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+}
+
+.tfi-stat {
+    text-align: center;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-radius: 12px;
+    border: 2px solid #e1e8ed;
+    transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.tfi-stat:hover {
+    transform: translateY(-2px);
+    border-color: #667eea;
+}
+
+.tfi-stat-label {
+    font-size: 0.9rem;
+    color: #7f8c8d;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.tfi-stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+/* Top Merchants Table - Index Theme */
+.merchants-table {
+    width: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e1e8ed;
+}
+
+.table-header {
+    display: grid;
+    grid-template-columns: 60px 1fr 80px 100px 80px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.th {
+    padding: 1rem;
+    text-align: center;
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.th:last-child {
+    border-right: none;
+}
+
+.th.merchant {
+    text-align: left;
+}
+
+.table-body {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.merchant-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 80px 100px 80px;
+    border-bottom: 1px solid #e1e8ed;
+    transition: background-color 0.3s ease;
+}
+
+.merchant-row:hover {
+    background-color: #f8f9fa;
+}
+
+.merchant-row:last-child {
+    border-bottom: none;
+}
+
+.td {
+    padding: 1rem;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.td.merchant {
+    justify-content: flex-start;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.merchant-name {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.25rem;
+}
+
+.merchant-category {
+    font-size: 0.8rem;
+    color: #7f8c8d;
+}
+
+.tfi-score {
+    font-weight: bold;
+    color: #28a745;
+}
+
+.rating-stars {
+    color: #ffc107;
+    margin-bottom: 0.25rem;
+}
+
+.rating-count {
+    font-size: 0.8rem;
+    color: #7f8c8d;
+}
+
+/* Community Basket Index Dashboard - Index Theme */
+.cbi-dashboard {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 2rem;
+    align-items: center;
+}
+
+.cbi-main {
+    text-align: center;
+}
+
+.cbi-value {
+    margin-bottom: 1rem;
+}
+
+.cbi-number {
+    font-size: 3rem;
+    font-weight: bold;
+    color: #2c3e50;
+    display: block;
+}
+
+.cbi-trend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    color: #7f8c8d;
+}
+
+.cbi-label {
+    font-size: 1.1rem;
+    color: #7f8c8d;
+    font-weight: 500;
+}
+
+.cbi-components {
+    display: grid;
+    gap: 1rem;
+}
+
+.cbi-component {
+    display: grid;
+    grid-template-columns: 80px 1fr 50px;
+    gap: 1rem;
+    align-items: center;
+}
+
+.cbi-component-label {
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+.cbi-component-bar {
+    height: 20px;
+    background: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.cbi-component-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745, #20c997);
+    transition: width 0.5s ease;
+}
+
+.cbi-component-value {
+    text-align: right;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+/* Metrics History Chart - Index Theme */
+.metrics-history {
+    margin-top: 1rem;
+}
+
+.chart-container {
+    position: relative;
+    height: 200px;
+    margin-bottom: 1rem;
+}
+
+.chart-legend {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: #7f8c8d;
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+}
+
+.legend-color.pfi-color {
+    background: #667eea;
+}
+
+.legend-color.tfi-color {
+    background: #28a745;
+}
+
+.legend-color.cbi-color {
+    background: #ffc107;
+}
+
+/* Fairness Alerts - Index Theme */
+.fairness-alerts {
+    display: grid;
+    gap: 1rem;
+}
+
+.alert-item {
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    border-left: 4px solid;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: transform 0.2s ease;
+}
+
+.alert-item:hover {
+    transform: translateX(4px);
+}
+
+.alert-item.alert-high {
+    background: #fef5f5;
+    border-left-color: #dc3545;
+    color: #721c24;
+}
+
+.alert-item.alert-medium {
+    background: #fffdf5;
+    border-left-color: #ffc107;
+    color: #856404;
+}
+
+.alert-item.alert-low {
+    background: #f5f9ff;
+    border-left-color: #17a2b8;
+    color: #0c5460;
+}
+
+.alert-icon {
+    font-size: 1.2rem;
+    opacity: 0.8;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.alert-message {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+.alert-time {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin-top: 0.25rem;
+}
+
+/* Responsive Design for Index Theme */
+@media (max-width: 768px) {
+    .metrics-section {
+        grid-template-columns: 1fr;
+    }
+    
+    .pfi-chart {
+        grid-template-columns: 1fr;
+    }
+    
+    .tfi-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .cbi-dashboard {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+    
+    .table-header,
+    .merchant-row {
+        grid-template-columns: 50px 1fr 60px 80px 60px;
+        font-size: 0.8rem;
+    }
+    
+    .th,
+    .td {
+        padding: 0.5rem;
+    }
+    
+    .metrics-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .chart-legend {
+        gap: 1rem;
+    }
+}

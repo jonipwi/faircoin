@@ -43,6 +43,7 @@ func main() {
 	fairnessService := services.NewFairnessService(db)
 	governanceService := services.NewGovernanceService(db)
 	monetaryService := services.NewMonetaryService(db)
+	metricsService := services.NewMetricsService(db)
 
 	// Start background services
 	go func() {
@@ -58,6 +59,21 @@ func main() {
 			// Process monetary policy
 			if err := monetaryService.ProcessMonthlyIssuance(); err != nil {
 				log.Printf("Error processing monthly issuance: %v", err)
+			}
+
+			// Update fairness metrics
+			if err := metricsService.UpdateDailyMetrics(); err != nil {
+				log.Printf("Error updating daily metrics: %v", err)
+			}
+
+			// Update merchant rankings
+			if err := metricsService.UpdateMerchantRankings(); err != nil {
+				log.Printf("Error updating merchant rankings: %v", err)
+			}
+
+			// Check for fairness alerts
+			if err := metricsService.CheckForAlerts(); err != nil {
+				log.Printf("Error checking for alerts: %v", err)
 			}
 		}
 	}()
@@ -93,6 +109,7 @@ func main() {
 		fairnessService,
 		governanceService,
 		monetaryService,
+		metricsService,
 		cfg,
 	)
 
@@ -154,6 +171,25 @@ func main() {
 			public.GET("/merchants", apiHandler.GetPublicMerchants)
 		}
 
+		// Public Fairness Metrics routes
+		metrics := v1.Group("/metrics")
+		{
+			metrics.GET("/fairness", apiHandler.GetFairnessMetrics)
+			metrics.GET("/pfi-distribution", apiHandler.GetPFIDistributionData)
+			metrics.GET("/tfi-analysis", apiHandler.GetTFIAnalysisData)
+			metrics.GET("/top-merchants", apiHandler.GetTopMerchantsData)
+			metrics.GET("/cbi", apiHandler.GetCommunityBasketIndexData)
+			metrics.GET("/history", apiHandler.GetMetricsHistory)
+		}
+
+		// Protected Fairness Metrics routes (require authentication)
+		protectedMetrics := v1.Group("/metrics")
+		protectedMetrics.Use(apiHandler.AuthMiddleware())
+		{
+			protectedMetrics.GET("/alerts", apiHandler.GetFairnessAlerts)
+			protectedMetrics.PUT("/alerts/:id/read", apiHandler.MarkAlertRead)
+		}
+
 		// Admin routes (protected with admin privileges)
 		admin := v1.Group("/admin")
 		admin.Use(apiHandler.AuthMiddleware())
@@ -168,6 +204,11 @@ func main() {
 			admin.PUT("/users/:id", apiHandler.UpdateUserStatus)
 			admin.GET("/monetary-policy", apiHandler.GetMonetaryPolicyInfo)
 			admin.POST("/make-admin", apiHandler.MakeUserAdmin) // Temporary endpoint
+
+			// Admin fairness metrics endpoints
+			admin.POST("/metrics/update", apiHandler.UpdateMetrics)
+			admin.GET("/metrics/detailed-pfi", apiHandler.GetDetailedPFIAnalysis)
+			admin.GET("/metrics/detailed-tfi", apiHandler.GetDetailedTFIAnalysis)
 		}
 	}
 

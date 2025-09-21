@@ -21,6 +21,7 @@ type Demo struct {
 	walletService      *services.WalletService
 	transactionService *services.TransactionService
 	fairnessService    *services.FairnessService
+	metricsService     *services.MetricsService
 	users              []models.User
 }
 
@@ -58,6 +59,7 @@ func (d *Demo) initialize() error {
 	d.walletService = services.NewWalletService(d.db)
 	d.transactionService = services.NewTransactionService(d.db)
 	d.fairnessService = services.NewFairnessService(d.db)
+	d.metricsService = services.NewMetricsService(d.db)
 
 	return nil
 }
@@ -73,7 +75,9 @@ func (d *Demo) runDemo() {
 	fmt.Println("5. Calculate PFI★ and TFI★ scores")
 	fmt.Println("6. Generate transaction history")
 	fmt.Println("7. Create governance proposals")
-	fmt.Println("8. Display final results")
+	fmt.Println("8. Generate fairness metrics & CBI data")
+	fmt.Println("9. Create fairness alerts")
+	fmt.Println("10. Display final results")
 
 	// Step 1: Clear database
 	d.clearDatabase()
@@ -110,6 +114,9 @@ func (d *Demo) clearDatabase() {
 
 	// Clear all data from tables in proper order (respecting foreign keys)
 	tables := []string{
+		"fairness_alerts",
+		"merchant_rankings",
+		"fairness_metrics",
 		"votes",
 		"proposals",
 		"ratings",
@@ -136,6 +143,21 @@ func (d *Demo) clearDatabase() {
 		// Just log a warning and continue
 		log.Printf("Migration warning (expected for existing database): %v", err)
 		fmt.Println("   ⚠️  Database migration had warnings (tables already exist)")
+	}
+
+	// Explicitly create fairness metrics tables if they don't exist
+	fmt.Println("   🔧 Ensuring fairness metrics tables exist...")
+
+	fairnessTables := []interface{}{
+		&models.FairnessMetrics{},
+		&models.MerchantRanking{},
+		&models.FairnessAlert{},
+	}
+
+	for _, table := range fairnessTables {
+		if err := d.db.AutoMigrate(table).Error; err != nil {
+			log.Printf("Warning: Could not create table for %T: %v", table, err)
+		}
 	}
 
 	fmt.Println("   ✅ Database cleared and recreated")
@@ -1022,10 +1044,79 @@ func (d *Demo) displayResults() {
 	fmt.Println("   • Transparency in business practices")
 	fmt.Println("   • Environmental responsibility")
 
+	// Step 8: Generate fairness metrics & CBI data
+	fmt.Println("\n📊 Step 8: Generating fairness metrics and CBI data...")
+
+	// Generate daily metrics snapshot
+	err := d.metricsService.UpdateDailyMetrics()
+	if err != nil {
+		log.Printf("Warning: failed to update daily metrics: %v", err)
+	} else {
+		fmt.Printf("✅ Generated fairness metrics snapshot\n")
+	}
+
+	// Step 9: Create fairness alerts
+	fmt.Println("\n🚨 Step 9: Creating fairness alerts...")
+
+	// Create sample fairness alerts
+	alerts := []models.FairnessAlert{
+		{
+			Type:        "pfi_decline",
+			Severity:    "medium",
+			Title:       "PFI★ Distribution Alert",
+			Description: "PFI★ distribution shows high concentration in 'Poor' category",
+			IsResolved:  false,
+		},
+		{
+			Type:        "merchant_trend",
+			Severity:    "low",
+			Title:       "Merchant Trend Monitor",
+			Description: "Monitoring merchant fairness trends across the platform",
+			IsResolved:  false,
+		},
+		{
+			Type:        "cbi_change",
+			Severity:    "info",
+			Title:       "CBI Status Update",
+			Description: "Community Basket Index stable - healthy market conditions",
+			IsResolved:  true,
+		},
+	}
+
+	alertCount := 0
+	for _, alert := range alerts {
+		if err := d.db.Create(&alert).Error; err != nil {
+			log.Printf("Warning: failed to create fairness alert: %v", err)
+			continue
+		}
+		alertCount++
+	}
+
+	fmt.Printf("✅ Created %d fairness alerts\n", alertCount)
+
+	fmt.Println("\n🎯 DEMONSTRATION COMPLETE:")
+	fmt.Println("---------------------------")
+	fmt.Printf("✅ %d users created with diverse profiles\n", len(d.users))
+	fmt.Printf("✅ Complete fairness metrics system operational\n")
+	fmt.Printf("✅ 31 days of historical data generated\n")
+	fmt.Printf("✅ %d fairness alerts created\n", alertCount)
+
+	fmt.Println("\n🌐 Access your FairCoin system at:")
+	fmt.Println("   Frontend: http://localhost:3000")
+	fmt.Println("   API: http://localhost:8080")
+	fmt.Println("   Admin Dashboard: http://localhost:3000/admin")
+	fmt.Println("\n📊 View Fairness Metrics at:")
+	fmt.Println("   Dashboard: http://localhost:3000/fairness-metrics")
+	fmt.Println("   API Endpoint: http://localhost:8080/api/v1/metrics/fairness")
+	fmt.Println("   Metrics History: http://localhost:8080/api/v1/metrics/history")
+
 	fmt.Println("\n✅ FairCoin ecosystem features demonstrated:")
 	fmt.Println("   • Merit-based rewards system")
 	fmt.Println("   • Democratic governance with PFI-weighted voting")
 	fmt.Println("   • Incentives for community contribution")
 	fmt.Println("   • Fair trade merchant support")
 	fmt.Println("   • Transparent and accountable transactions")
+	fmt.Println("   • Comprehensive fairness metrics analysis")
+	fmt.Println("   • Real-time CBI monitoring")
+	fmt.Println("   • Fairness alerts and notifications")
 }
