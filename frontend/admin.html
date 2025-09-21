@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FairCoin Admin Dashboard</title>
+    <link rel="stylesheet" href="assets/css/admin.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fas fa-shield-alt"></i> FairCoin Admin</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#dashboard" class="nav-item active" data-section="dashboard">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a href="#users" class="nav-item" data-section="users">
+                    <i class="fas fa-users"></i> Users Management
+                </a>
+                <a href="#transactions" class="nav-item" data-section="transactions">
+                    <i class="fas fa-exchange-alt"></i> Transactions
+                </a>
+                <a href="#governance" class="nav-item" data-section="governance">
+                    <i class="fas fa-vote-yea"></i> Governance
+                </a>
+                <a href="#monetary" class="nav-item" data-section="monetary">
+                    <i class="fas fa-coins"></i> Monetary Policy
+                </a>
+                <a href="#fairness" class="nav-item" data-section="fairness">
+                    <i class="fas fa-balance-scale"></i> Fairness Metrics
+                </a>
+                <a href="#system" class="nav-item" data-section="system">
+                    <i class="fas fa-cogs"></i> System Settings
+                </a>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <header class="header">
+                <h1 id="page-title">Dashboard Overview</h1>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="refreshData()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportData()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <div id="dashboard" class="content-section active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="total-users">0</h3>
+                            <p>Total Users</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="total-supply">0</h3>
+                            <p>Total Supply (FC)</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="daily-transactions">0</h3>
+                            <p>Daily Transactions</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-balance-scale"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="avg-pfi">0</h3>
+                            <p>Average PFI★</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>PFI★ Distribution</h3>
+                        <canvas id="pfiChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Transaction Volume</h3>
+                        <canvas id="transactionChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="recent-activity">
+                    <h3>Recent System Activity</h3>
+                    <div class="activity-list" id="recent-activity">
+                        <!-- Activity items will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Management Section -->
+            <div id="users" class="content-section">
+                <div class="section-header">
+                    <h2>Users Management</h2>
+                    <div class="search-bar">
+                        <input type="text" id="user-search" placeholder="Search users...">
+                        <button onclick="searchUsers()"><i class="fas fa-search"></i></button>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>PFI★</th>
+                                <th>TFI★</th>
+                                <th>Balance (FC)</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table">
+                            <!-- User data will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Transactions Section -->
+            <div id="transactions" class="content-section">
+                <div class="section-header">
+                    <h2>Transaction Management</h2>
+                    <div class="filters">
+                        <select id="tx-type-filter">
+                            <option value="">All Types</option>
+                            <option value="transfer">Transfer</option>
+                            <option value="fairness_reward">Fairness Reward</option>
+                            <option value="monthly_issuance">Monthly Issuance</option>
+                        </select>
+                        <input type="date" id="tx-date-filter">
+                        <button onclick="filterTransactions()">Filter</button>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Type</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Amount (FC)</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-table">
+                            <!-- Transaction data will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Governance Section -->
+            <div id="governance" class="content-section">
+                <div class="section-header">
+                    <h2>Governance Management</h2>
+                    <button class="btn btn-primary" onclick="createProposal()">
+                        <i class="fas fa-plus"></i> New Proposal
+                    </button>
+                </div>
+                
+                <div class="proposals-grid">
+                    <div id="proposals-list">
+                        <!-- Proposals will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monetary Policy Section -->
+            <div id="monetary" class="content-section">
+                <div class="section-header">
+                    <h2>Monetary Policy Dashboard</h2>
+                </div>
+                
+                <div class="monetary-grid">
+                    <div class="policy-card">
+                        <h3>Current Policy</h3>
+                        <div class="policy-details" id="current-policy">
+                            <!-- Policy details will be populated here -->
+                        </div>
+                    </div>
+                    <div class="policy-card">
+                        <h3>Issuance Controls</h3>
+                        <div class="issuance-controls">
+                            <label>Base Issuance Rate:</label>
+                            <input type="number" id="base-issuance" step="0.01" min="0">
+                            
+                            <label>Activity Factor:</label>
+                            <input type="number" id="activity-factor" step="0.01" min="0" max="2">
+                            
+                            <label>Fairness Factor:</label>
+                            <input type="number" id="fairness-factor" step="0.01" min="0" max="2">
+                            
+                            <button class="btn btn-primary" onclick="updateMonetaryPolicy()">
+                                Update Policy
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fairness Metrics Section -->
+            <div id="fairness" class="content-section">
+                <div class="section-header">
+                    <h2>Fairness Metrics Analysis</h2>
+                </div>
+                
+                <div class="fairness-grid">
+                    <div class="metric-card">
+                        <h3>PFI★ Distribution</h3>
+                        <div class="pfi-breakdown" id="pfi-breakdown">
+                            <!-- PFI breakdown will be populated here -->
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>TFI★ Analysis</h3>
+                        <div class="tfi-analysis" id="tfi-analysis">
+                            <!-- TFI analysis will be populated here -->
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Community Basket Index</h3>
+                        <div class="cbi-display" id="cbi-display">
+                            <!-- CBI data will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Settings Section -->
+            <div id="system" class="content-section">
+                <div class="section-header">
+                    <h2>System Settings</h2>
+                </div>
+                
+                <div class="settings-grid">
+                    <div class="settings-card">
+                        <h3>System Configuration</h3>
+                        <div class="setting-item">
+                            <label>Transaction Fee Rate (%):</label>
+                            <input type="number" id="fee-rate" step="0.01" min="0" max="5">
+                        </div>
+                        <div class="setting-item">
+                            <label>Minimum PFI★ for Proposals:</label>
+                            <input type="number" id="min-pfi" min="0" max="100">
+                        </div>
+                        <div class="setting-item">
+                            <label>Voting Period (days):</label>
+                            <input type="number" id="voting-period" min="1" max="30">
+                        </div>
+                        <button class="btn btn-primary" onclick="saveSystemSettings()">
+                            Save Settings
+                        </button>
+                    </div>
+                    
+                    <div class="settings-card">
+                        <h3>Database Management</h3>
+                        <button class="btn btn-warning" onclick="backupDatabase()">
+                            <i class="fas fa-database"></i> Backup Database
+                        </button>
+                        <button class="btn btn-info" onclick="viewLogs()">
+                            <i class="fas fa-file-alt"></i> View System Logs
+                        </button>
+                        <button class="btn btn-danger" onclick="resetSystem()">
+                            <i class="fas fa-exclamation-triangle"></i> Reset System
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modal-title">Modal Title</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Modal content will be populated here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" id="modal-confirm" onclick="confirmModal()">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="assets/js/admin.js"></script>
+</body>
+</html>

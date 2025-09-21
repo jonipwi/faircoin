@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FairCoin - Community-Driven Fair Transaction System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="assets/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-coins"></i>
+                <span>FairCoin</span>
+            </div>
+            <div class="nav-menu" id="navMenu">
+                <a href="#home" class="nav-link active" data-section="home">Home</a>
+                <a href="#wallet" class="nav-link" data-section="wallet">Wallet</a>
+                <a href="#merchants" class="nav-link" data-section="merchants">Merchants</a>
+                <a href="#governance" class="nav-link" data-section="governance">Governance</a>
+                <a href="#community" class="nav-link" data-section="community">Community</a>
+                <div class="auth-buttons">
+                    <button class="btn btn-outline" id="loginBtn">Login</button>
+                    <button class="btn btn-primary" id="registerBtn">Register</button>
+                    <div class="user-menu" id="userMenu" style="display: none;">
+                        <span class="user-name" id="userName"></span>
+                        <button class="btn btn-outline" id="logoutBtn">Logout</button>
+                    </div>
+                </div>
+            </div>
+            <div class="nav-toggle" id="navToggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        
+        <!-- Home Section -->
+        <section id="home" class="section active">
+            <div class="hero">
+                <div class="container">
+                    <div class="hero-content">
+                        <h1>FairCoin</h1>
+                        <p class="hero-subtitle">A Community-Driven Fair Transaction System</p>
+                        <p class="hero-description">
+                            Breaking free from Bitcoin's inequality and fiat's inflation with a fairness-first monetary system.
+                            Powered by Personal Fairness Index (PFI★) and Trade Fairness Index (TFI★).
+                        </p>
+                        <div class="hero-buttons">
+                            <button class="btn btn-primary btn-lg" id="getStartedBtn">Get Started</button>
+                            <button class="btn btn-outline btn-lg" id="learnMoreBtn">Learn More</button>
+                        </div>
+                    </div>
+                    <div class="hero-stats">
+                        <div class="stat-card">
+                            <div class="stat-number" id="totalUsers">-</div>
+                            <div class="stat-label">Active Users</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="totalMerchants">-</div>
+                            <div class="stat-label">Verified Merchants</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="circulatingSupply">-</div>
+                            <div class="stat-label">FC in Circulation</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="averagePFI">-</div>
+                            <div class="stat-label">Average PFI</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features Section -->
+            <div class="features">
+                <div class="container">
+                    <h2>Why FairCoin?</h2>
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-balance-scale"></i>
+                            </div>
+                            <h3>Fairness First</h3>
+                            <p>PFI★ ensures rewards go to contributors, not just holders. TFI★ promotes honest merchants.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <h3>Stable Value</h3>
+                            <p>Anchored to Community Basket Index (CBI), not volatile speculation or inflating fiat.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <h3>Community Governed</h3>
+                            <p>PFI-weighted voting ensures fair representation. No whale control.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <h3>Anti-Concentration</h3>
+                            <p>Built-in mechanisms prevent wealth hoarding and promote circulation.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Wallet Section -->
+        <section id="wallet" class="section">
+            <div class="container">
+                <div class="auth-required" id="walletAuthRequired">
+                    <div class="auth-message">
+                        <i class="fas fa-lock"></i>
+                        <h3>Authentication Required</h3>
+                        <p>Please log in to access your wallet.</p>
+                        <button class="btn btn-primary" id="walletLoginBtn">Login</button>
+                    </div>
+                </div>
+                
+                <div class="wallet-content" id="walletContent" style="display: none;">
+                    <div class="wallet-header">
+                        <h2>My Wallet</h2>
+                        <div class="wallet-balance">
+                            <div class="balance-card">
+                                <div class="balance-label">Available Balance</div>
+                                <div class="balance-amount" id="walletBalance">0.00 FC</div>
+                            </div>
+                            <div class="balance-card">
+                                <div class="balance-label">Locked/Vesting</div>
+                                <div class="balance-amount" id="walletLocked">0.00 FC</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="wallet-actions">
+                        <button class="btn btn-primary" id="sendBtn">
+                            <i class="fas fa-paper-plane"></i> Send FC
+                        </button>
+                        <button class="btn btn-outline" id="requestBtn">
+                            <i class="fas fa-qrcode"></i> Request Payment
+                        </button>
+                        <button class="btn btn-outline" id="historyBtn">
+                            <i class="fas fa-history"></i> Transaction History
+                        </button>
+                    </div>
+
+                    <!-- PFI Display -->
+                    <div class="pfi-display">
+                        <h3>Personal Fairness Index (PFI★)</h3>
+                        <div class="pfi-score">
+                            <div class="pfi-circle">
+                                <span class="pfi-number" id="pfiScore">0</span>
+                                <span class="pfi-max">/100</span>
+                            </div>
+                            <div class="pfi-details">
+                                <div class="pfi-breakdown" id="pfiBreakdown">
+                                    <div class="breakdown-item">
+                                        <span>Community Service:</span>
+                                        <span id="communityServiceHours">0 hours</span>
+                                    </div>
+                                    <div class="breakdown-item">
+                                        <span>Attestations:</span>
+                                        <span id="attestationCount">0</span>
+                                    </div>
+                                    <div class="breakdown-item">
+                                        <span>Account Age:</span>
+                                        <span id="accountAge">0 days</span>
+                                    </div>
+                                </div>
+                                <button class="btn btn-outline btn-sm" id="improvesPFIBtn">How to Improve PFI</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transaction History -->
+                    <div class="transaction-history" id="transactionHistory">
+                        <h3>Recent Transactions</h3>
+                        <div class="transaction-list" id="transactionList">
+                            <!-- Transactions will be loaded here -->
+                        </div>
+                        <button class="btn btn-outline" id="loadMoreBtn">Load More</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Merchants Section -->
+        <section id="merchants" class="section">
+            <div class="container">
+                <div class="merchants-header">
+                    <h2>Merchant Directory</h2>
+                    <p>Find verified merchants with high Trade Fairness Index (TFI★) scores</p>
+                    <div class="merchants-controls">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="merchantSearch" placeholder="Search merchants...">
+                        </div>
+                        <div class="auth-only" style="display: none;">
+                            <button class="btn btn-primary" id="becomeMerchantBtn">Become a Merchant</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="merchants-grid" id="merchantsGrid">
+                    <!-- Merchants will be loaded here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Governance Section -->
+        <section id="governance" class="section">
+            <div class="container">
+                <div class="governance-header">
+                    <h2>Community Governance</h2>
+                    <p>Participate in FairCoin's democratic decision-making process</p>
+                </div>
+
+                <div class="auth-required" id="governanceAuthRequired">
+                    <div class="auth-message">
+                        <i class="fas fa-vote-yea"></i>
+                        <h3>Login Required</h3>
+                        <p>Please log in to participate in governance.</p>
+                        <button class="btn btn-primary" id="governanceLoginBtn">Login</button>
+                    </div>
+                </div>
+
+                <div class="governance-content" id="governanceContent" style="display: none;">
+                    <!-- Council Members -->
+                    <div class="council-section">
+                        <h3>Community Council</h3>
+                        <div class="council-members" id="councilMembers">
+                            <!-- Council members will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Active Proposals -->
+                    <div class="proposals-section">
+                        <div class="proposals-header">
+                            <h3>Active Proposals</h3>
+                            <button class="btn btn-primary" id="createProposalBtn">Create Proposal</button>
+                        </div>
+                        <div class="proposals-list" id="proposalsList">
+                            <!-- Proposals will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Community Section -->
+        <section id="community" class="section">
+            <div class="container">
+                <div class="community-header">
+                    <h2>Community Stats</h2>
+                    <p>Real-time statistics about the FairCoin community</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card-large">
+                        <div class="stat-icon">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="statCirculatingSupply">Loading...</div>
+                            <div class="stat-label">Total FairCoins in Circulation</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card-large">
+                        <div class="stat-icon">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="statTransactionVolume">Loading...</div>
+                            <div class="stat-label">30-Day Transaction Volume</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card-large">
+                        <div class="stat-icon">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="statAveragePFI">Loading...</div>
+                            <div class="stat-label">Community Average PFI</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card-large">
+                        <div class="stat-icon">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="statCBI">Loading...</div>
+                            <div class="stat-label">Community Basket Index</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CBI Breakdown -->
+                <div class="cbi-section">
+                    <h3>Community Basket Index (CBI) Breakdown</h3>
+                    <div class="cbi-chart" id="cbiChart">
+                        <div class="cbi-item">
+                            <div class="cbi-label">Food (40%)</div>
+                            <div class="cbi-bar">
+                                <div class="cbi-fill" style="width: 0%" id="cbiFoodBar"></div>
+                            </div>
+                            <div class="cbi-value" id="cbiFoodValue">-</div>
+                        </div>
+                        <div class="cbi-item">
+                            <div class="cbi-label">Labor (30%)</div>
+                            <div class="cbi-bar">
+                                <div class="cbi-fill" style="width: 0%" id="cbiLaborBar"></div>
+                            </div>
+                            <div class="cbi-value" id="cbiLaborValue">-</div>
+                        </div>
+                        <div class="cbi-item">
+                            <div class="cbi-label">Energy (20%)</div>
+                            <div class="cbi-bar">
+                                <div class="cbi-fill" style="width: 0%" id="cbiEnergyBar"></div>
+                            </div>
+                            <div class="cbi-value" id="cbiEnergyValue">-</div>
+                        </div>
+                        <div class="cbi-item">
+                            <div class="cbi-label">Housing (10%)</div>
+                            <div class="cbi-bar">
+                                <div class="cbi-fill" style="width: 0%" id="cbiHousingBar"></div>
+                            </div>
+                            <div class="cbi-value" id="cbiHousingValue">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modals -->
+    
+    <!-- Login Modal -->
+    <div class="modal" id="loginModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Login to FairCoin</h3>
+                <button class="modal-close" id="loginModalClose">&times;</button>
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginUsername">Username</label>
+                    <input type="text" id="loginUsername" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary btn-full">Login</button>
+                </div>
+                <div class="form-group text-center">
+                    <a href="#" id="showRegisterModal">Don't have an account? Register</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div class="modal" id="registerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Register for FairCoin</h3>
+                <button class="modal-close" id="registerModalClose">&times;</button>
+            </div>
+            <form id="registerForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="registerFirstName">First Name</label>
+                        <input type="text" id="registerFirstName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerLastName">Last Name</label>
+                        <input type="text" id="registerLastName" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="registerUsername">Username</label>
+                    <input type="text" id="registerUsername" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerEmail">Email</label>
+                    <input type="email" id="registerEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Password</label>
+                    <input type="password" id="registerPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPasswordConfirm">Confirm Password</label>
+                    <input type="password" id="registerPasswordConfirm" required>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary btn-full">Register</button>
+                </div>
+                <div class="form-group text-center">
+                    <a href="#" id="showLoginModal">Already have an account? Login</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Send FC Modal -->
+    <div class="modal" id="sendModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Send FairCoins</h3>
+                <button class="modal-close" id="sendModalClose">&times;</button>
+            </div>
+            <form id="sendForm">
+                <div class="form-group">
+                    <label for="sendToUsername">To Username</label>
+                    <input type="text" id="sendToUsername" required placeholder="Enter recipient username">
+                </div>
+                <div class="form-group">
+                    <label for="sendAmount">Amount (FC)</label>
+                    <input type="number" id="sendAmount" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="sendDescription">Description (Optional)</label>
+                    <input type="text" id="sendDescription" placeholder="What's this payment for?">
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary btn-full">Send FairCoins</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Proposal Modal -->
+    <div class="modal" id="createProposalModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>Create New Proposal</h3>
+                <button class="modal-close" id="createProposalModalClose">&times;</button>
+            </div>
+            <form id="createProposalForm">
+                <div class="form-group">
+                    <label for="proposalTitle">Title</label>
+                    <input type="text" id="proposalTitle" required maxlength="200" placeholder="Brief, descriptive title">
+                </div>
+                <div class="form-group">
+                    <label for="proposalType">Type</label>
+                    <select id="proposalType" required>
+                        <option value="">Select proposal type</option>
+                        <option value="monetary_policy">Monetary Policy</option>
+                        <option value="governance">Governance</option>
+                        <option value="technical">Technical</option>
+                        <option value="community">Community</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="proposalDescription">Description</label>
+                    <textarea id="proposalDescription" required minlength="50" rows="8" placeholder="Detailed description of your proposal (minimum 50 characters)"></textarea>
+                </div>
+                <div class="form-group">
+                    <div class="proposal-requirements">
+                        <p><strong>Requirements:</strong></p>
+                        <ul>
+                            <li>Minimum PFI of 50 required to create proposals</li>
+                            <li>Voting period: 7 days</li>
+                            <li>Minimum 10% community participation required</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary btn-full">Create Proposal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading...</p>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="assets/js/app.js"></script>
+</body>
+</html>
