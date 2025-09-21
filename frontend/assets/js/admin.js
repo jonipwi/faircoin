@@ -1594,6 +1594,17 @@ class FairCoinAdmin {
         this.authToken = null;
         this.currentUser = null;
         this.isAuthenticated = false;
+        
+        // Stop all intervals
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+            this.refreshInterval = null;
+        }
+        if (this.authCheckInterval) {
+            clearInterval(this.authCheckInterval);
+            this.authCheckInterval = null;
+        }
+        
         this.hideAdminInfo();
         
         // Show user-friendly message
@@ -1642,9 +1653,12 @@ class FairCoinAdmin {
     }
 
     startDataRefresh() {
-        // Clear any existing interval
+        // Clear any existing intervals
         if (this.refreshInterval) {
             clearInterval(this.refreshInterval);
+        }
+        if (this.authCheckInterval) {
+            clearInterval(this.authCheckInterval);
         }
         
         // Refresh data every 30 seconds
@@ -1653,6 +1667,31 @@ class FairCoinAdmin {
                 this.loadDashboard();
             }
         }, 30000);
+        
+        // Check authentication status every 60 seconds
+        this.authCheckInterval = setInterval(() => {
+            if (this.isAuthenticated && this.authToken) {
+                this.validateTokenSilently();
+            }
+        }, 60000);
+    }
+
+    async validateTokenSilently() {
+        try {
+            const response = await fetch(`${this.apiBase}/v1/users/profile`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+
+            if (!response.ok) {
+                console.warn('Silent token validation failed - triggering auto-logout');
+                this.handleAutoLogout('Session expired - please login again');
+            }
+        } catch (error) {
+            console.warn('Silent token validation error:', error);
+            // Don't auto-logout on network errors, just log it
+        }
     }
 
     // Action handlers
@@ -2068,18 +2107,33 @@ class FairCoinAdmin {
         if (this.currentUser) {
             const adminInfo = document.getElementById('admin-info');
             const adminUsernameDisplay = document.getElementById('admin-username-display');
+            const authStatus = document.getElementById('auth-status');
             
             if (adminInfo && adminUsernameDisplay) {
                 adminUsernameDisplay.textContent = this.currentUser.username;
                 adminInfo.style.display = 'block';
+                
+                if (authStatus) {
+                    authStatus.className = '';
+                    authStatus.innerHTML = '<i class="fas fa-circle" style="animation: pulse 2s infinite;"></i> AUTHENTICATED';
+                    authStatus.style.background = '#28a745';
+                }
             }
         }
     }
 
     hideAdminInfo() {
         const adminInfo = document.getElementById('admin-info');
+        const authStatus = document.getElementById('auth-status');
+        
         if (adminInfo) {
             adminInfo.style.display = 'none';
+        }
+        
+        if (authStatus) {
+            authStatus.className = 'expired';
+            authStatus.innerHTML = '<i class="fas fa-times-circle"></i> EXPIRED';
+            authStatus.style.background = '#dc3545';
         }
     }
 

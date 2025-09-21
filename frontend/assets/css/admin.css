@@ -115,6 +115,28 @@ body {
     color: #28a745;
 }
 
+#auth-status {
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#auth-status.expired {
+    background: #dc3545 !important;
+    animation: blink 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.3; }
+}
+
 .header-actions {
     display: flex;
     gap: 10px;
