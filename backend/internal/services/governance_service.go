@@ -20,6 +20,11 @@ func NewGovernanceService(db *gorm.DB) *GovernanceService {
 	return &GovernanceService{db: db}
 }
 
+// GetDB returns the database connection
+func (s *GovernanceService) GetDB() *gorm.DB {
+	return s.db
+}
+
 // CreateProposal creates a new governance proposal
 func (s *GovernanceService) CreateProposal(proposerID uuid.UUID, title, description string, proposalType models.ProposalType) (*models.Proposal, error) {
 	// Check if proposer has sufficient PFI
@@ -183,6 +188,11 @@ type MonetaryService struct {
 // NewMonetaryService creates a new monetary service
 func NewMonetaryService(db *gorm.DB) *MonetaryService {
 	return &MonetaryService{db: db}
+}
+
+// GetDB returns the database connection
+func (s *MonetaryService) GetDB() *gorm.DB {
+	return s.db
 }
 
 // ProcessMonthlyIssuance processes the monthly FairCoin issuance

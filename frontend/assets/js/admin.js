@@ -6,14 +6,20 @@ class FairCoinAdmin {
         this.currentSection = 'dashboard';
         this.authToken = localStorage.getItem('admin_token');
         this.charts = {};
+        this.isAuthenticated = false;
         
         this.init();
     }
 
     init() {
         this.setupEventListeners();
-        this.loadDashboard();
-        this.startDataRefresh();
+        
+        // Check if user is already authenticated
+        if (this.authToken) {
+            this.validateToken();
+        } else {
+            this.showLoginModal();
+        }
     }
 
     setupEventListeners() {
@@ -35,6 +41,13 @@ class FairCoinAdmin {
         document.querySelector('.modal-overlay')?.addEventListener('click', (e) => {
             if (e.target.classList.contains('modal-overlay')) {
                 this.closeModal();
+            }
+        });
+
+        // Login form enter key
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && document.getElementById('login-modal').style.display === 'block') {
+                this.adminLogin();
             }
         });
     }
@@ -111,57 +124,58 @@ class FairCoinAdmin {
     }
 
     async fetchStats() {
-        // Simulate API calls - replace with actual API endpoints
-        return {
-            totalUsers: 1247,
-            totalSupply: 2847593.45,
-            dailyTransactions: 156,
-            avgPFI: 67.8
-        };
+        try {
+            const response = await fetch(`${this.apiBase}/v1/admin/stats`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch stats');
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching stats:', error);
+            // Fallback to mock data if API fails
+            return {
+                total_users: 0,
+                total_supply: 0,
+                daily_transactions: 0,
+                avg_pfi: 0
+            };
+        }
     }
 
     async fetchRecentActivity() {
-        // Simulate recent activity data
-        return [
-            {
-                type: 'user_registration',
-                message: 'New user alice123 registered',
-                time: '2 minutes ago',
-                icon: 'user-plus',
-                color: '#3498db'
-            },
-            {
-                type: 'transaction',
-                message: 'Large transaction: 5000 FC transferred',
-                time: '5 minutes ago',
-                icon: 'exchange-alt',
-                color: '#2ecc71'
-            },
-            {
-                type: 'proposal',
-                message: 'New governance proposal submitted',
-                time: '10 minutes ago',
-                icon: 'vote-yea',
-                color: '#f39c12'
-            },
-            {
-                type: 'fairness',
-                message: 'PFI recalculation completed',
-                time: '15 minutes ago',
-                icon: 'balance-scale',
-                color: '#9b59b6'
+        try {
+            const response = await fetch(`${this.apiBase}/v1/admin/activity`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch recent activity');
             }
-        ];
+            
+            const data = await response.json();
+            return data.activities || [];
+        } catch (error) {
+            console.error('Error fetching recent activity:', error);
+            return [];
+        }
     }
 
     updateStats(stats) {
-        document.getElementById('total-users').textContent = stats.totalUsers.toLocaleString();
-        document.getElementById('total-supply').textContent = stats.totalSupply.toLocaleString(undefined, {
+        document.getElementById('total-users').textContent = (stats.total_users || 0).toLocaleString();
+        document.getElementById('total-supply').textContent = (stats.total_supply || 0).toLocaleString(undefined, {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
-        document.getElementById('daily-transactions').textContent = stats.dailyTransactions.toLocaleString();
-        document.getElementById('avg-pfi').textContent = stats.avgPFI.toFixed(1);
+        document.getElementById('daily-transactions').textContent = (stats.daily_transactions || 0).toLocaleString();
+        document.getElementById('avg-pfi').textContent = (stats.avg_pfi || 0).toFixed(1);
     }
 
     updateRecentActivity(activities) {
@@ -179,38 +193,62 @@ class FairCoinAdmin {
         `).join('');
     }
 
-    createCharts() {
-        this.createPFIChart();
+    async createCharts() {
+        await this.createPFIChart();
         this.createTransactionChart();
     }
 
-    createPFIChart() {
-        const ctx = document.getElementById('pfiChart').getContext('2d');
-        
-        if (this.charts.pfi) {
-            this.charts.pfi.destroy();
-        }
+    async createPFIChart() {
+        try {
+            const response = await fetch(`${this.apiBase}/v1/admin/pfi-distribution`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            
+            let distribution;
+            if (response.ok) {
+                const data = await response.json();
+                distribution = data.distribution || [];
+            } else {
+                // Fallback data
+                distribution = [
+                    { range: 'excellent', count: 0 },
+                    { range: 'good', count: 0 },
+                    { range: 'average', count: 0 },
+                    { range: 'poor', count: 0 }
+                ];
+            }
 
-        this.charts.pfi = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Excellent (90-100)', 'Good (70-89)', 'Average (50-69)', 'Poor (0-49)'],
-                datasets: [{
-                    data: [15, 35, 40, 10],
-                    backgroundColor: ['#2ecc71', '#3498db', '#f39c12', '#e74c3c'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'right'
+            const ctx = document.getElementById('pfiChart').getContext('2d');
+            
+            if (this.charts.pfi) {
+                this.charts.pfi.destroy();
+            }
+
+            this.charts.pfi = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Excellent (90-100)', 'Good (70-89)', 'Average (50-69)', 'Poor (0-49)'],
+                    datasets: [{
+                        data: distribution.map(d => d.count),
+                        backgroundColor: ['#2ecc71', '#3498db', '#f39c12', '#e74c3c'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        }
                     }
                 }
-            }
-        });
+            });
+        } catch (error) {
+            console.error('Error creating PFI chart:', error);
+        }
     }
 
     createTransactionChart() {
@@ -261,51 +299,35 @@ class FairCoinAdmin {
     }
 
     async fetchUsers() {
-        // Simulate user data - replace with actual API call
-        return [
-            {
-                id: '1',
-                username: 'alice123',
-                email: 'alice@example.com',
-                pfi: 85,
-                tfi: 92,
-                balance: 1250.75,
-                status: 'verified',
-                createdAt: '2024-01-15'
-            },
-            {
-                id: '2',
-                username: 'bob456',
-                email: 'bob@example.com',
-                pfi: 67,
-                tfi: 78,
-                balance: 890.30,
-                status: 'pending',
-                createdAt: '2024-02-20'
-            },
-            {
-                id: '3',
-                username: 'carol789',
-                email: 'carol@example.com',
-                pfi: 94,
-                tfi: 88,
-                balance: 2100.50,
-                status: 'verified',
-                createdAt: '2024-01-10'
+        try {
+            const response = await fetch(`${this.apiBase}/v1/admin/users`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch users');
             }
-        ];
+            
+            const data = await response.json();
+            return data.users || [];
+        } catch (error) {
+            console.error('Error fetching users:', error);
+            return [];
+        }
     }
 
     displayUsers(users) {
         const tbody = document.getElementById('users-table');
         tbody.innerHTML = users.map(user => `
             <tr>
-                <td>${user.username}</td>
-                <td>${user.email}</td>
-                <td><span class="pfi-score">${user.pfi}★</span></td>
-                <td><span class="tfi-score">${user.tfi}★</span></td>
-                <td>${user.balance.toFixed(2)} FC</td>
-                <td><span class="status-badge status-${user.status}">${user.status}</span></td>
+                <td>${user.username || 'N/A'}</td>
+                <td>${user.email || 'N/A'}</td>
+                <td><span class="pfi-score">${user.pfi || 0}★</span></td>
+                <td><span class="tfi-score">${user.tfi || 0}★</span></td>
+                <td>${(user.balance || 0).toFixed(2)} FC</td>
+                <td><span class="status-badge status-${user.is_verified ? 'verified' : 'pending'}">${user.is_verified ? 'verified' : 'pending'}</span></td>
                 <td>
                     <button class="btn btn-sm btn-primary" onclick="admin.editUser('${user.id}')">
                         <i class="fas fa-edit"></i>
@@ -329,40 +351,36 @@ class FairCoinAdmin {
     }
 
     async fetchTransactions() {
-        // Simulate transaction data
-        return [
-            {
-                id: 'tx001',
-                type: 'transfer',
-                from: 'alice123',
-                to: 'bob456',
-                amount: 500.00,
-                status: 'completed',
-                createdAt: '2024-03-15T10:30:00Z'
-            },
-            {
-                id: 'tx002',
-                type: 'fairness_reward',
-                from: 'system',
-                to: 'carol789',
-                amount: 25.50,
-                status: 'completed',
-                createdAt: '2024-03-15T09:15:00Z'
+        try {
+            const response = await fetch(`${this.apiBase}/v1/admin/transactions`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch transactions');
             }
-        ];
+            
+            const data = await response.json();
+            return data.transactions || [];
+        } catch (error) {
+            console.error('Error fetching transactions:', error);
+            return [];
+        }
     }
 
     displayTransactions(transactions) {
         const tbody = document.getElementById('transactions-table');
         tbody.innerHTML = transactions.map(tx => `
             <tr>
-                <td class="mono">${tx.id}</td>
-                <td><span class="tx-type">${tx.type.replace('_', ' ')}</span></td>
-                <td>${tx.from}</td>
-                <td>${tx.to}</td>
-                <td>${tx.amount.toFixed(2)} FC</td>
-                <td><span class="status-badge status-${tx.status}">${tx.status}</span></td>
-                <td>${new Date(tx.createdAt).toLocaleDateString()}</td>
+                <td class="mono">${tx.id || 'N/A'}</td>
+                <td><span class="tx-type">${(tx.type || '').replace('_', ' ')}</span></td>
+                <td>${tx.from_user || 'System'}</td>
+                <td>${tx.to_user || 'N/A'}</td>
+                <td>${(tx.amount || 0).toFixed(2)} FC</td>
+                <td><span class="status-badge status-${tx.status}">${tx.status || 'unknown'}</span></td>
+                <td>${tx.created_at ? new Date(tx.created_at).toLocaleDateString() : 'N/A'}</td>
                 <td>
                     <button class="btn btn-sm btn-info" onclick="admin.viewTransaction('${tx.id}')">
                         <i class="fas fa-eye"></i>
@@ -454,45 +472,60 @@ class FairCoinAdmin {
     }
 
     async fetchMonetaryPolicy() {
-        return {
-            currentMonth: '2024-03',
-            baseIssuance: 2.0,
-            activityFactor: 1.2,
-            fairnessFactor: 1.1,
-            totalIssuance: 56890.45,
-            circulatingSupply: 2847593.45,
-            averagePFI: 67.8
-        };
+        try {
+            const response = await fetch(`${this.apiBase}/v1/admin/monetary-policy`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch monetary policy');
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching monetary policy:', error);
+            return {
+                current_month: '2024-03',
+                base_issuance: 2.0,
+                activity_factor: 1.0,
+                fairness_factor: 1.0,
+                total_issuance: 0,
+                circulating_supply: 0,
+                average_pfi: 0
+            };
+        }
     }
 
     displayMonetaryPolicy(policy) {
         document.getElementById('current-policy').innerHTML = `
             <div class="policy-item">
                 <label>Current Month:</label>
-                <span>${policy.currentMonth}</span>
+                <span>${policy.current_month}</span>
             </div>
             <div class="policy-item">
                 <label>Base Issuance Rate:</label>
-                <span>${policy.baseIssuance}%</span>
+                <span>${policy.base_issuance}%</span>
             </div>
             <div class="policy-item">
                 <label>Activity Factor:</label>
-                <span>${policy.activityFactor}x</span>
+                <span>${policy.activity_factor}x</span>
             </div>
             <div class="policy-item">
                 <label>Fairness Factor:</label>
-                <span>${policy.fairnessFactor}x</span>
+                <span>${policy.fairness_factor}x</span>
             </div>
             <div class="policy-item">
                 <label>Total Issuance:</label>
-                <span>${policy.totalIssuance.toLocaleString()} FC</span>
+                <span>${(policy.total_issuance || 0).toLocaleString()} FC</span>
             </div>
         `;
 
         // Populate form fields
-        document.getElementById('base-issuance').value = policy.baseIssuance;
-        document.getElementById('activity-factor').value = policy.activityFactor;
-        document.getElementById('fairness-factor').value = policy.fairnessFactor;
+        document.getElementById('base-issuance').value = policy.base_issuance;
+        document.getElementById('activity-factor').value = policy.activity_factor;
+        document.getElementById('fairness-factor').value = policy.fairness_factor;
     }
 
     async loadFairnessMetrics() {
@@ -696,10 +729,104 @@ class FairCoinAdmin {
         console.log(message);
         // Could be enhanced with toast notifications
     }
+
+    // Authentication methods
+    showLoginModal() {
+        document.getElementById('login-modal').style.display = 'block';
+        document.querySelector('.admin-container').style.display = 'none';
+    }
+
+    hideLoginModal() {
+        document.getElementById('login-modal').style.display = 'none';
+        document.querySelector('.admin-container').style.display = 'flex';
+    }
+
+    async adminLogin() {
+        const username = document.getElementById('admin-username').value;
+        const password = document.getElementById('admin-password').value;
+        const errorDiv = document.getElementById('login-error');
+
+        if (!username || !password) {
+            this.showLoginError('Please enter both username and password');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${this.apiBase}/v1/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: username,
+                    password: password
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.token) {
+                this.authToken = data.token;
+                localStorage.setItem('admin_token', this.authToken);
+                this.isAuthenticated = true;
+                this.hideLoginModal();
+                this.loadDashboard();
+                this.startDataRefresh();
+                errorDiv.style.display = 'none';
+            } else {
+                this.showLoginError(data.error || 'Login failed');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            this.showLoginError('Network error. Please try again.');
+        }
+    }
+
+    showLoginError(message) {
+        const errorDiv = document.getElementById('login-error');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+    }
+
+    async validateToken() {
+        try {
+            const response = await fetch(`${this.apiBase}/v1/users/profile`, {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+
+            if (response.ok) {
+                this.isAuthenticated = true;
+                this.hideLoginModal();
+                this.loadDashboard();
+                this.startDataRefresh();
+            } else {
+                // Token is invalid
+                localStorage.removeItem('admin_token');
+                this.authToken = null;
+                this.showLoginModal();
+            }
+        } catch (error) {
+            console.error('Token validation error:', error);
+            this.showLoginModal();
+        }
+    }
+
+    logout() {
+        localStorage.removeItem('admin_token');
+        this.authToken = null;
+        this.isAuthenticated = false;
+        this.showLoginModal();
+    }
 }
 
 // Global functions for onclick handlers
 window.admin = null;
+
+// Authentication functions
+window.adminLogin = () => admin.adminLogin();
+window.logout = () => admin.logout();
 
 // Action functions
 window.refreshData = () => admin.refreshData();

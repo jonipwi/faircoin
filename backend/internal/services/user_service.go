@@ -20,6 +20,11 @@ func NewUserService(db *gorm.DB) *UserService {
 	return &UserService{db: db}
 }
 
+// GetDB returns the database connection
+func (s *UserService) GetDB() *gorm.DB {
+	return s.db
+}
+
 // CreateUser creates a new user with a wallet
 func (s *UserService) CreateUser(username, email, password, firstName, lastName string) (*models.User, error) {
 	user := &models.User{
@@ -125,6 +130,11 @@ func NewWalletService(db *gorm.DB) *WalletService {
 	return &WalletService{db: db}
 }
 
+// GetDB returns the database connection
+func (s *WalletService) GetDB() *gorm.DB {
+	return s.db
+}
+
 // GetBalance returns the wallet balance for a user
 func (s *WalletService) GetBalance(userID uuid.UUID) (*models.Wallet, error) {
 	var wallet models.Wallet
@@ -212,6 +222,11 @@ type TransactionService struct {
 // NewTransactionService creates a new transaction service
 func NewTransactionService(db *gorm.DB) *TransactionService {
 	return &TransactionService{db: db}
+}
+
+// GetDB returns the database connection
+func (s *TransactionService) GetDB() *gorm.DB {
+	return s.db
 }
 
 // GetUserTransactions returns transaction history for a user

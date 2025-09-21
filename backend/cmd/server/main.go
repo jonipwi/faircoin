@@ -151,6 +151,19 @@ func main() {
 			public.GET("/cbi", apiHandler.GetCommunityBasketIndex)
 			public.GET("/merchants", apiHandler.GetPublicMerchants)
 		}
+
+		// Admin routes (protected)
+		admin := v1.Group("/admin")
+		admin.Use(apiHandler.AuthMiddleware())
+		{
+			admin.GET("/stats", apiHandler.GetAdminStats)
+			admin.GET("/users", apiHandler.GetAllUsers)
+			admin.GET("/transactions", apiHandler.GetAllTransactions)
+			admin.GET("/pfi-distribution", apiHandler.GetPFIDistribution)
+			admin.GET("/activity", apiHandler.GetRecentActivity)
+			admin.PUT("/users/:id", apiHandler.UpdateUserStatus)
+			admin.GET("/monetary-policy", apiHandler.GetMonetaryPolicyInfo)
+		}
 	}
 
 	// Health check
