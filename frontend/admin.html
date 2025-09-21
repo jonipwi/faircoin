@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <m                    <button class="btn btn-primary" onclick="refreshData()">
+                        <i class="fas fa-sync"></i> Refresh Data
+                    </button>
+                    <button class="btn btn-warning" onclick="makeAdmin()" id="makeAdminBtn">
+                        <i class="fas fa-crown"></i> Make Me Admin
+                    </button> charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FairCoin Admin Dashboard</title>
     <link rel="stylesheet" href="assets/css/admin.css">
@@ -32,6 +37,9 @@
                 </a>
                 <a href="#fairness" class="nav-item" data-section="fairness">
                     <i class="fas fa-balance-scale"></i> Fairness Metrics
+                </a>
+                <a href="#demo-report" class="nav-item" data-section="demo-report">
+                    <i class="fas fa-chart-line"></i> Demo Report
                 </a>
                 <a href="#system" class="nav-item" data-section="system">
                     <i class="fas fa-cogs"></i> System Settings
@@ -259,6 +267,180 @@
                         <h3>Community Basket Index</h3>
                         <div class="cbi-display" id="cbi-display">
                             <!-- CBI data will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Demo Report Section -->
+            <div id="demo-report" class="content-section">
+                <div class="section-header">
+                    <h2>🌟 FairCoin Demo Success Report</h2>
+                    <div class="demo-actions">
+                        <button class="btn btn-primary" onclick="refreshDemoData()">
+                            <i class="fas fa-sync-alt"></i> Refresh Demo Data
+                        </button>
+                        <button class="btn btn-success" onclick="runNewDemo()">
+                            <i class="fas fa-play"></i> Run New Demo
+                        </button>
+                    </div>
+                </div>
+
+                <div class="demo-summary-grid">
+                    <!-- User Profiles Summary -->
+                    <div class="demo-card">
+                        <div class="demo-card-header">
+                            <h3><i class="fas fa-users"></i> User Profiles & PFI★ Scores</h3>
+                            <small style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 5px; display: block;">
+                                <i class="fas fa-sort-amount-down"></i> Sorted by PFI★ (Highest to Lowest)
+                            </small>
+                        </div>
+                        <div class="demo-card-body">
+                            <div class="user-profiles-list" id="demo-users-list">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transaction Summary -->
+                    <div class="demo-card">
+                        <div class="demo-card-header">
+                            <h3><i class="fas fa-exchange-alt"></i> Transaction Analytics</h3>
+                        </div>
+                        <div class="demo-card-body">
+                            <div class="transaction-stats" id="demo-transaction-stats">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Governance Summary -->
+                    <div class="demo-card">
+                        <div class="demo-card-header">
+                            <h3><i class="fas fa-vote-yea"></i> Governance Activity</h3>
+                        </div>
+                        <div class="demo-card-body">
+                            <div class="governance-stats" id="demo-governance-stats">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Community Engagement -->
+                    <div class="demo-card">
+                        <div class="demo-card-header">
+                            <h3><i class="fas fa-handshake"></i> Community Engagement</h3>
+                        </div>
+                        <div class="demo-card-body">
+                            <div class="community-stats" id="demo-community-stats">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Charts Section -->
+                <div class="demo-charts-section">
+                    <div class="chart-row">
+                        <div class="chart-card">
+                            <h3>PFI★ Score Distribution</h3>
+                            <div class="chart-container">
+                                <canvas id="demoPfiChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h3>Transaction Types Breakdown</h3>
+                            <div class="chart-container">
+                                <canvas id="demoTransactionTypesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-row">
+                        <div class="chart-card">
+                            <h3>Transaction Volume Over Time</h3>
+                            <div class="chart-container">
+                                <canvas id="demoVolumeChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h3>Governance Participation</h3>
+                            <div class="chart-container">
+                                <canvas id="demoGovernanceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Key Insights Section -->
+                <div class="demo-insights">
+                    <h3><i class="fas fa-lightbulb"></i> Key Demo Insights</h3>
+                    <div class="insights-grid">
+                        <div class="insight-card">
+                            <div class="insight-icon">
+                                <i class="fas fa-trophy"></i>
+                            </div>
+                            <div class="insight-content">
+                                <h4>Fairness Scoring Success</h4>
+                                <p>PFI★ system successfully differentiated users based on community contributions, with scores ranging from 12 to 80 points.</p>
+                            </div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-icon">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <div class="insight-content">
+                                <h4>Active Economic System</h4>
+                                <p>Generated realistic transaction patterns with 89% transfers and 11% system rewards, totaling over 23,000 FC in volume.</p>
+                            </div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-icon">
+                                <i class="fas fa-balance-scale"></i>
+                            </div>
+                            <div class="insight-content">
+                                <h4>Democratic Governance</h4>
+                                <p>Active democratic participation with PFI-weighted voting ensuring fair representation based on community contribution.</p>
+                            </div>
+                        </div>
+                        <div class="insight-card">
+                            <div class="insight-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="insight-content">
+                                <h4>Community Trust Building</h4>
+                                <p>Peer attestation system fostering trust and reputation through community validation and verification.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Performance Metrics -->
+                <div class="demo-performance">
+                    <h3><i class="fas fa-tachometer-alt"></i> System Performance</h3>
+                    <div class="performance-grid">
+                        <div class="perf-metric">
+                            <div class="perf-value" id="demo-users-count">8</div>
+                            <div class="perf-label">Total Users Created</div>
+                        </div>
+                        <div class="perf-metric">
+                            <div class="perf-value" id="demo-transactions-count">225</div>
+                            <div class="perf-label">Transactions Generated</div>
+                        </div>
+                        <div class="perf-metric">
+                            <div class="perf-value" id="demo-volume-total">23,458</div>
+                            <div class="perf-label">Total Volume (FC)</div>
+                        </div>
+                        <div class="perf-metric">
+                            <div class="perf-value" id="demo-attestations-count">16</div>
+                            <div class="perf-label">Peer Attestations</div>
+                        </div>
+                        <div class="perf-metric">
+                            <div class="perf-value" id="demo-proposals-count">4</div>
+                            <div class="perf-label">Governance Proposals</div>
+                        </div>
+                        <div class="perf-metric">
+                            <div class="perf-value" id="demo-votes-count">19</div>
+                            <div class="perf-label">Votes Cast</div>
                         </div>
                     </div>
                 </div>

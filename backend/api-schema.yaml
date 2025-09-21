@@ -1,0 +1,1596 @@
+openapi: 3.0.0
+info:
+  title: FairCoin API
+  description: |
+    FairCoin is a community-driven digital currency that emphasizes fairness, transparency, and social impact. 
+    This API provides endpoints for user management, wallet operations, governance, and monetary policy.
+    
+    **Key Features:**
+    - Personal Fairness Index (PFI) scoring system
+    - Trade Fairness Index (TFI) for merchants
+    - Community governance through proposals and voting
+    - Dynamic monetary policy based on community metrics
+    - Community Basket Index (CBI) for price stability
+    
+    **Authentication:**
+    Most endpoints require JWT authentication. Include the token in the Authorization header as: `Bearer <token>`
+  version: 1.0.0
+  contact:
+    name: FairCoin API Support
+    email: support@faircoin.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Development server
+  - url: https://api.faircoin.com/v1
+    description: Production server
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Health Check (Note: This is at root level, not under /api/v1)
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check endpoint
+      description: Returns the current health status of the API server
+      security: []
+      servers:
+        - url: http://localhost:8080
+          description: Health check is at root level
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  timestamp:
+                    type: integer
+                    example: 1640995200
+                  version:
+                    type: string
+                    example: "1.0.0"
+
+  # Authentication Endpoints
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Create a new FairCoin user account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - email
+                - password
+                - first_name
+                - last_name
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 50
+                  example: "john_doe"
+                email:
+                  type: string
+                  format: email
+                  example: "john@example.com"
+                password:
+                  type: string
+                  minLength: 6
+                  example: "securepassword123"
+                first_name:
+                  type: string
+                  example: "John"
+                last_name:
+                  type: string
+                  example: "Doe"
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User created successfully"
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '400':
+          description: Invalid input or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Authenticate user
+      description: Login with username and password to receive JWT token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: "john_doe"
+                password:
+                  type: string
+                  example: "securepassword123"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Login successful"
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh JWT token
+      description: Generate a new JWT token using the current valid token
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # User Profile Endpoints
+  /users/profile:
+    get:
+      tags:
+        - Users
+      summary: Get user profile
+      description: Retrieve the authenticated user's profile information
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Users
+      summary: Update user profile
+      description: Update the authenticated user's profile information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                  example: "John"
+                last_name:
+                  type: string
+                  example: "Doe"
+                email:
+                  type: string
+                  format: email
+                  example: "john.doe@example.com"
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Profile updated successfully"
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/pfi:
+    get:
+      tags:
+        - Users
+      summary: Get PFI breakdown
+      description: Retrieve the authenticated user's Personal Fairness Index breakdown
+      responses:
+        '200':
+          description: PFI breakdown retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PFIBreakdown'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/attest:
+    post:
+      tags:
+        - Users
+      summary: Create user attestation
+      description: Create an attestation for another user to contribute to their PFI score
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - type
+                - value
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                  example: "123e4567-e89b-12d3-a456-426614174000"
+                type:
+                  type: string
+                  enum: [community_service, dispute_resolution, peer_rating, fairness_advocate]
+                  example: "community_service"
+                value:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  example: 8
+                description:
+                  type: string
+                  example: "Helped organize community cleanup event"
+      responses:
+        '201':
+          description: Attestation created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Attestation created successfully"
+                  attestation:
+                    $ref: '#/components/schemas/Attestation'
+        '400':
+          description: Invalid input or duplicate attestation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Wallet Endpoints
+  /wallet/balance:
+    get:
+      tags:
+        - Wallet
+      summary: Get wallet balance
+      description: Retrieve the authenticated user's wallet balance and details
+      responses:
+        '200':
+          description: Wallet balance retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Wallet not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /wallet/history:
+    get:
+      tags:
+        - Wallet
+      summary: Get transaction history
+      description: Retrieve the authenticated user's transaction history with pagination
+      parameters:
+        - name: limit
+          in: query
+          description: Number of transactions to return (max 100)
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          description: Number of transactions to skip
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Transaction history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /wallet/send:
+    post:
+      tags:
+        - Wallet
+      summary: Send FairCoins
+      description: Transfer FairCoins to another user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - to_username
+                - amount
+              properties:
+                to_username:
+                  type: string
+                  example: "jane_doe"
+                amount:
+                  type: number
+                  minimum: 0.01
+                  example: 25.50
+                description:
+                  type: string
+                  example: "Payment for services"
+      responses:
+        '200':
+          description: Transfer successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Transfer successful"
+                  transaction:
+                    $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Invalid input or insufficient funds
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Recipient not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Merchant Endpoints
+  /merchants:
+    get:
+      tags:
+        - Merchants
+      summary: Get verified merchants
+      description: Retrieve list of all verified merchants with their TFI scores
+      responses:
+        '200':
+          description: Merchants retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  merchants:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MerchantInfo'
+
+  /merchants/register:
+    post:
+      tags:
+        - Merchants
+      summary: Register as merchant
+      description: Register the authenticated user as a merchant
+      responses:
+        '200':
+          description: Successfully registered as merchant
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Successfully registered as merchant"
+        '400':
+          description: Already registered as merchant or validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /merchants/{id}/tfi:
+    get:
+      tags:
+        - Merchants
+      summary: Get merchant TFI breakdown
+      description: Retrieve a merchant's Trade Fairness Index breakdown
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Merchant user ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: TFI breakdown retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TFIBreakdown'
+        '404':
+          description: Merchant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /merchants/{id}/rate:
+    post:
+      tags:
+        - Merchants
+      summary: Rate a merchant
+      description: Submit a rating for a merchant after a transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Merchant user ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - delivery_rating
+                - quality_rating
+                - transparency_rating
+              properties:
+                delivery_rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  example: 9
+                quality_rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  example: 8
+                transparency_rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  example: 10
+                environmental_rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  example: 7
+                comments:
+                  type: string
+                  example: "Excellent service and fast delivery"
+                transaction_id:
+                  type: string
+                  format: uuid
+                  example: "123e4567-e89b-12d3-a456-426614174000"
+      responses:
+        '201':
+          description: Rating created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Rating created successfully"
+                  rating:
+                    $ref: '#/components/schemas/Rating'
+        '400':
+          description: Invalid input or duplicate rating
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Governance Endpoints
+  /governance/proposals:
+    get:
+      tags:
+        - Governance
+      summary: Get active proposals
+      description: Retrieve all active governance proposals
+      responses:
+        '200':
+          description: Proposals retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  proposals:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Proposal'
+
+    post:
+      tags:
+        - Governance
+      summary: Create new proposal
+      description: Submit a new governance proposal to the community
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - description
+                - type
+              properties:
+                title:
+                  type: string
+                  minLength: 10
+                  maxLength: 200
+                  example: "Adjust Monthly Issuance Rate"
+                description:
+                  type: string
+                  minLength: 50
+                  example: "Proposal to adjust the monthly FairCoin issuance rate from 2% to 1.5% based on current economic conditions and community growth metrics."
+                type:
+                  type: string
+                  enum: [monetary_policy, governance, technical, community]
+                  example: "monetary_policy"
+      responses:
+        '201':
+          description: Proposal created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Proposal created successfully"
+                  proposal:
+                    $ref: '#/components/schemas/Proposal'
+        '400':
+          description: Invalid input or insufficient PFI
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /governance/proposals/{id}/vote:
+    post:
+      tags:
+        - Governance
+      summary: Vote on proposal
+      description: Cast a vote on a governance proposal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Proposal ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vote
+              properties:
+                vote:
+                  type: boolean
+                  example: true
+                  description: "true for 'Yes', false for 'No'"
+      responses:
+        '200':
+          description: Vote recorded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Vote recorded successfully"
+        '400':
+          description: Invalid input, already voted, or proposal not active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /governance/council:
+    get:
+      tags:
+        - Governance
+      summary: Get council members
+      description: Retrieve current community council members
+      responses:
+        '200':
+          description: Council members retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  council_members:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CouncilMember'
+
+  # Public Endpoints
+  /public/stats:
+    get:
+      tags:
+        - Public
+      summary: Get community statistics
+      description: Retrieve public community statistics (no authentication required)
+      security: []
+      responses:
+        '200':
+          description: Community statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityStats'
+
+  /public/cbi:
+    get:
+      tags:
+        - Public
+      summary: Get Community Basket Index
+      description: Retrieve the current Community Basket Index for price stability
+      security: []
+      responses:
+        '200':
+          description: CBI retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cbi:
+                    $ref: '#/components/schemas/CommunityBasketIndex'
+
+  /public/merchants:
+    get:
+      tags:
+        - Public
+      summary: Get public merchant list
+      description: Retrieve public list of verified merchants (no sensitive data)
+      security: []
+      responses:
+        '200':
+          description: Public merchants retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  merchants:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PublicMerchantInfo'
+
+  # Admin Endpoints
+  /admin/stats:
+    get:
+      tags:
+        - Admin
+      summary: Get admin statistics
+      description: Retrieve comprehensive system statistics (requires admin privileges)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Admin statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStats'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Admin privileges required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/users:
+    get:
+      tags:
+        - Admin
+      summary: Get all users
+      description: Retrieve all users with detailed information (admin only)
+      responses:
+        '200':
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminUserInfo'
+
+  /admin/users/{id}:
+    put:
+      tags:
+        - Admin
+      summary: Update user status
+      description: Update user verification status and PFI (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                is_verified:
+                  type: boolean
+                  example: true
+                pfi:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                  example: 85
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User updated successfully"
+
+  /admin/transactions:
+    get:
+      tags:
+        - Admin
+      summary: Get all transactions
+      description: Retrieve all system transactions (admin only, limited to last 100)
+      responses:
+        '200':
+          description: Transactions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminTransactionInfo'
+
+  /admin/pfi-distribution:
+    get:
+      tags:
+        - Admin
+      summary: Get PFI distribution
+      description: Retrieve PFI score distribution across all users (admin only)
+      responses:
+        '200':
+          description: PFI distribution retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  distribution:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Range:
+                          type: string
+                          enum: [excellent, good, average, poor]
+                        Count:
+                          type: integer
+
+  /admin/activity:
+    get:
+      tags:
+        - Admin
+      summary: Get recent activity
+      description: Retrieve recent system activity for admin dashboard
+      responses:
+        '200':
+          description: Recent activity retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activities:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ActivityItem'
+
+  /admin/transaction-volume:
+    get:
+      tags:
+        - Admin
+      summary: Get transaction volume
+      description: Retrieve transaction volume over the last 6 months
+      responses:
+        '200':
+          description: Transaction volume retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  volume_data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Month:
+                          type: string
+                          example: "Jan"
+                        Volume:
+                          type: number
+                          example: 15420.50
+
+  /admin/monetary-policy:
+    get:
+      tags:
+        - Admin
+      summary: Get monetary policy info
+      description: Retrieve current monetary policy information
+      responses:
+        '200':
+          description: Monetary policy info retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonetaryPolicyInfo'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        username:
+          type: string
+          example: "john_doe"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        first_name:
+          type: string
+          example: "John"
+        last_name:
+          type: string
+          example: "Doe"
+        pfi:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 75
+          description: "Personal Fairness Index (0-100)"
+        is_verified:
+          type: boolean
+          example: true
+        is_merchant:
+          type: boolean
+          example: false
+        is_admin:
+          type: boolean
+          example: false
+          description: "Admin privileges flag"
+        tfi:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 0
+          description: "Trade Fairness Index (0-100, for merchants only)"
+        community_service:
+          type: integer
+          example: 24
+          description: "Hours of community service performed"
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-12-01T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2023-12-15T14:20:00Z"
+
+    Wallet:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        user_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        balance:
+          type: number
+          example: 1250.75
+          description: "Available FairCoin balance"
+        locked_fc:
+          type: number
+          example: 100.00
+          description: "Locked FairCoins (vesting, staking, etc.)"
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-12-01T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2023-12-15T14:20:00Z"
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        user_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        to_user_id:
+          type: string
+          format: uuid
+          nullable: true
+          example: "456e7890-e12b-34d5-a678-426614174001"
+        type:
+          type: string
+          enum: [transfer, fairness_reward, merchant_incentive, monthly_issuance, fee, burn]
+          example: "transfer"
+        amount:
+          type: number
+          example: 25.50
+        fee:
+          type: number
+          example: 0.25
+        description:
+          type: string
+          example: "Payment for services"
+        status:
+          type: string
+          enum: [pending, completed, failed]
+          example: "completed"
+        metadata:
+          type: string
+          description: "JSON metadata"
+          example: "{\"source\":\"wallet_transfer\"}"
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-12-15T14:20:00Z"
+
+    Attestation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        user_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        attester_id:
+          type: string
+          format: uuid
+          example: "456e7890-e12b-34d5-a678-426614174001"
+        type:
+          type: string
+          example: "community_service"
+        value:
+          type: integer
+          minimum: 1
+          maximum: 10
+          example: 8
+        description:
+          type: string
+          example: "Helped organize community cleanup event"
+        verified:
+          type: boolean
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-12-15T14:20:00Z"
+
+    Rating:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        user_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        merchant_id:
+          type: string
+          format: uuid
+          example: "456e7890-e12b-34d5-a678-426614174001"
+        transaction_id:
+          type: string
+          format: uuid
+          nullable: true
+          example: "789e0123-e45b-67d8-a901-426614174002"
+        delivery_rating:
+          type: integer
+          minimum: 1
+          maximum: 10
+          example: 9
+        quality_rating:
+          type: integer
+          minimum: 1
+          maximum: 10
+          example: 8
+        transparency_rating:
+          type: integer
+          minimum: 1
+          maximum: 10
+          example: 10
+        environmental_rating:
+          type: integer
+          minimum: 1
+          maximum: 10
+          example: 7
+        comments:
+          type: string
+          example: "Excellent service and fast delivery"
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-12-15T14:20:00Z"
+
+    Proposal:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        proposer_id:
+          type: string
+          format: uuid
+          example: "456e7890-e12b-34d5-a678-426614174001"
+        title:
+          type: string
+          example: "Adjust Monthly Issuance Rate"
+        description:
+          type: string
+          example: "Proposal to adjust the monthly FairCoin issuance rate from 2% to 1.5%"
+        type:
+          type: string
+          enum: [monetary_policy, governance, technical, community]
+          example: "monetary_policy"
+        status:
+          type: string
+          enum: [active, passed, rejected, expired]
+          example: "active"
+        votes_for:
+          type: integer
+          example: 150
+        votes_against:
+          type: integer
+          example: 45
+        voting_power:
+          type: number
+          example: 0.75
+        start_time:
+          type: string
+          format: date-time
+          example: "2023-12-15T00:00:00Z"
+        end_time:
+          type: string
+          format: date-time
+          example: "2023-12-30T23:59:59Z"
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-12-15T14:20:00Z"
+
+    CommunityBasketIndex:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        value:
+          type: number
+          example: 1.25
+          description: "Current CBI value"
+        food_index:
+          type: number
+          example: 1.15
+        energy_index:
+          type: number
+          example: 1.35
+        labor_index:
+          type: number
+          example: 1.20
+          description: "Cost per hour of basic labor"
+        housing_index:
+          type: number
+          example: 1.30
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-12-15T14:20:00Z"
+
+    PFIBreakdown:
+      type: object
+      properties:
+        total_pfi:
+          type: integer
+          example: 75
+        community_service:
+          type: integer
+          example: 20
+        peer_attestations:
+          type: integer
+          example: 25
+        dispute_resolution:
+          type: integer
+          example: 15
+        fairness_advocacy:
+          type: integer
+          example: 15
+        attestation_details:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attestation'
+
+    TFIBreakdown:
+      type: object
+      properties:
+        total_tfi:
+          type: integer
+          example: 85
+        delivery_score:
+          type: number
+          example: 8.5
+        quality_score:
+          type: number
+          example: 9.0
+        transparency_score:
+          type: number
+          example: 8.0
+        environmental_score:
+          type: number
+          example: 7.5
+        total_ratings:
+          type: integer
+          example: 47
+        recent_ratings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rating'
+
+    MerchantInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        username:
+          type: string
+          example: "fair_store"
+        first_name:
+          type: string
+          example: "Fair"
+        last_name:
+          type: string
+          example: "Store"
+        tfi:
+          type: integer
+          example: 85
+        is_verified:
+          type: boolean
+          example: true
+        total_transactions:
+          type: integer
+          example: 156
+
+    PublicMerchantInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        username:
+          type: string
+          example: "fair_store"
+        first_name:
+          type: string
+          example: "Fair"
+        last_name:
+          type: string
+          example: "Store"
+        tfi:
+          type: integer
+          example: 85
+
+    CouncilMember:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        username:
+          type: string
+          example: "council_member_1"
+        first_name:
+          type: string
+          example: "Alice"
+        last_name:
+          type: string
+          example: "Johnson"
+        pfi:
+          type: integer
+          example: 95
+        council_role:
+          type: string
+          example: "Chairperson"
+        elected_at:
+          type: string
+          format: date-time
+          example: "2023-01-01T00:00:00Z"
+
+    CommunityStats:
+      type: object
+      properties:
+        total_users:
+          type: integer
+          example: 1248
+        active_merchants:
+          type: integer
+          example: 87
+        total_transactions:
+          type: integer
+          example: 15420
+        circulating_supply:
+          type: number
+          example: 125000.75
+        average_pfi:
+          type: number
+          example: 72.5
+        monthly_issuance:
+          type: number
+          example: 2500.00
+        current_cbi:
+          type: number
+          example: 1.25
+
+    AdminStats:
+      type: object
+      properties:
+        total_users:
+          type: integer
+          example: 1248
+        total_supply:
+          type: number
+          example: 125000.75
+        daily_transactions:
+          type: integer
+          example: 45
+        avg_pfi:
+          type: number
+          example: 72.5
+
+    AdminUserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        username:
+          type: string
+          example: "john_doe"
+        email:
+          type: string
+          example: "john@example.com"
+        first_name:
+          type: string
+          example: "John"
+        last_name:
+          type: string
+          example: "Doe"
+        pfi:
+          type: integer
+          example: 75
+        tfi:
+          type: integer
+          example: 0
+        is_verified:
+          type: boolean
+          example: true
+        is_merchant:
+          type: boolean
+          example: false
+        community_service:
+          type: integer
+          example: 24
+        balance:
+          type: number
+          example: 1250.75
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-12-01T10:30:00Z"
+
+    AdminTransactionInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        type:
+          type: string
+          example: "transfer"
+        amount:
+          type: number
+          example: 25.50
+        fee:
+          type: number
+          example: 0.25
+        status:
+          type: string
+          example: "completed"
+        description:
+          type: string
+          example: "Payment for services"
+        from_user:
+          type: string
+          example: "john_doe"
+        to_user:
+          type: string
+          example: "jane_doe"
+        user_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-12-15T14:20:00Z"
+
+    ActivityItem:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [user_registration, transaction, proposal]
+          example: "user_registration"
+        message:
+          type: string
+          example: "New user john_doe registered"
+        time:
+          type: string
+          format: date-time
+          example: "2023-12-15T14:20:00Z"
+        icon:
+          type: string
+          example: "user-plus"
+        color:
+          type: string
+          example: "#3498db"
+
+    MonetaryPolicyInfo:
+      type: object
+      properties:
+        current_month:
+          type: string
+          example: "2023-12"
+        base_issuance:
+          type: number
+          example: 2.0
+        activity_factor:
+          type: number
+          example: 1.0
+        fairness_factor:
+          type: number
+          example: 1.0
+        total_issuance:
+          type: number
+          example: 2500.00
+        circulating_supply:
+          type: number
+          example: 125000.75
+        average_pfi:
+          type: number
+          example: 72.5
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Invalid input data"
+        details:
+          type: string
+          example: "Username must be at least 3 characters long"
+
+tags:
+  - name: System
+    description: System health and status endpoints
+  - name: Authentication
+    description: User authentication and JWT token management
+  - name: Users
+    description: User profile management and PFI operations
+  - name: Wallet
+    description: Wallet balance and transaction operations
+  - name: Merchants
+    description: Merchant registration and TFI ratings
+  - name: Governance
+    description: Community governance proposals and voting
+  - name: Public
+    description: Public endpoints that don't require authentication
+  - name: Admin
+    description: Administrative endpoints for system management

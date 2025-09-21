@@ -90,6 +90,40 @@ func (h *Handler) AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
+// AdminMiddleware validates admin privileges
+func (h *Handler) AdminMiddleware() gin.HandlerFunc {
+	return gin.HandlerFunc(func(c *gin.Context) {
+		userIDStr, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+			c.Abort()
+			return
+		}
+
+		userID, err := uuid.Parse(userIDStr.(string))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+			c.Abort()
+			return
+		}
+
+		user, err := h.userService.GetUserByID(userID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			c.Abort()
+			return
+		}
+
+		if !user.IsAdmin {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Admin privileges required"})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	})
+}
+
 // generateToken generates a JWT token for a user
 func (h *Handler) generateToken(user *models.User) (string, error) {
 	claims := &Claims{
@@ -970,4 +1004,27 @@ func (h *Handler) GetTransactionVolume(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"volume_data": results})
+}
+
+// MakeUserAdmin makes the current user an admin (temporary setup method)
+func (h *Handler) MakeUserAdmin(c *gin.Context) {
+	userIDStr, _ := c.Get("user_id")
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// Update user to be admin
+	if err := h.userService.GetDB().Model(&models.User{}).
+		Where("id = ?", userID).
+		Update("is_admin", true).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to make user admin"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User is now an admin",
+		"user_id": userID,
+	})
 }

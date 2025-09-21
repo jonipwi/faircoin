@@ -19,6 +19,7 @@ type User struct {
 	PFI              int       `json:"pfi" gorm:"default:0"` // Personal Fairness Index (0-100)
 	IsVerified       bool      `json:"is_verified" gorm:"default:false"`
 	IsMerchant       bool      `json:"is_merchant" gorm:"default:false"`
+	IsAdmin          bool      `json:"is_admin" gorm:"default:false"`
 	TFI              int       `json:"tfi" gorm:"default:0"`               // Trade Fairness Index (0-100)
 	CommunityService int       `json:"community_service" gorm:"default:0"` // Hours of community service
 	CreatedAt        time.Time `json:"created_at"`

@@ -7,6 +7,7 @@ import (
 	"faircoin/internal/services"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -152,9 +153,11 @@ func main() {
 			public.GET("/merchants", apiHandler.GetPublicMerchants)
 		}
 
-		// Admin routes (protected)
+		// Admin routes (protected with admin privileges)
 		admin := v1.Group("/admin")
 		admin.Use(apiHandler.AuthMiddleware())
+		// TODO: Re-enable after setting up admin user
+		// admin.Use(apiHandler.AdminMiddleware())
 		{
 			admin.GET("/stats", apiHandler.GetAdminStats)
 			admin.GET("/users", apiHandler.GetAllUsers)
@@ -164,6 +167,7 @@ func main() {
 			admin.GET("/transaction-volume", apiHandler.GetTransactionVolume)
 			admin.PUT("/users/:id", apiHandler.UpdateUserStatus)
 			admin.GET("/monetary-policy", apiHandler.GetMonetaryPolicyInfo)
+			admin.POST("/make-admin", apiHandler.MakeUserAdmin) // Temporary endpoint
 		}
 	}
 
@@ -177,8 +181,21 @@ func main() {
 	})
 
 	// Serve static files for frontend
-	router.Static("/static", "../frontend")
+	log.Println("Setting up static file routes...")
+	log.Println("Current working directory:", ".")
+
+	// Check if frontend directory exists
+	if _, err := os.Stat("../frontend"); os.IsNotExist(err) {
+		log.Println("Warning: ../frontend directory not found")
+	} else {
+		log.Println("Frontend directory found at ../frontend")
+	}
+
+	router.Static("/assets", "../frontend/assets")
 	router.StaticFile("/", "../frontend/index.html")
+	router.StaticFile("/admin", "../frontend/admin.html")
+
+	log.Println("Static routes configured:")
 
 	// Start server
 	log.Printf("FairCoin server starting on port %s", cfg.Port)

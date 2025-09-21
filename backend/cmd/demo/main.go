@@ -107,26 +107,29 @@ func (d *Demo) runDemo() {
 func (d *Demo) clearDatabase() {
 	fmt.Println("\n🗑️  Step 1: Clearing existing database...")
 
-	// Drop all tables
-	tables := []interface{}{
-		&models.Vote{},
-		&models.Proposal{},
-		&models.Rating{},
-		&models.Attestation{},
-		&models.Transaction{},
-		&models.Wallet{},
-		&models.MonetaryPolicy{},
-		&models.CommunityBasketIndex{},
-		&models.User{},
+	// Clear all data from tables in proper order (respecting foreign keys)
+	tables := []string{
+		"votes",
+		"proposals",
+		"ratings",
+		"attestations",
+		"transactions",
+		"wallets",
+		"monetary_policies",
+		"community_basket_indices",
+		"users",
 	}
 
 	for _, table := range tables {
-		if err := d.db.DropTableIfExists(table).Error; err != nil {
-			log.Printf("Warning: Could not drop table: %v", err)
+		if err := d.db.Exec("DELETE FROM " + table).Error; err != nil {
+			log.Printf("Warning: Could not clear table %s: %v", table, err)
 		}
 	}
 
-	// Recreate tables
+	// Reset the users slice
+	d.users = nil
+
+	// Ensure tables exist (recreate if needed)
 	if err := database.Migrate(d.db); err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
@@ -203,6 +206,12 @@ func (d *Demo) createDiverseUsers() {
 
 func (d *Demo) generateCommunityActivities() {
 	fmt.Println("\n🤝 Step 3: Generating community activities & peer attestations...")
+
+	// Check if we have users to generate activities for
+	if len(d.users) == 0 {
+		fmt.Println("   ⚠️  No users found, skipping community activities generation")
+		return
+	}
 
 	// Community service activities
 	communityActivities := []struct {
@@ -302,6 +311,12 @@ func (d *Demo) generatePeerAttestations() {
 
 func (d *Demo) simulateMerchantActivities() {
 	fmt.Println("\n🛍️  Step 4: Simulating merchant transactions & customer ratings...")
+
+	// Check if we have users to simulate merchant activities for
+	if len(d.users) == 0 {
+		fmt.Println("   ⚠️  No users found, skipping merchant activities generation")
+		return
+	}
 
 	// Get merchants
 	merchants := []models.User{}
@@ -435,6 +450,12 @@ func (d *Demo) generateRatingComment(merchantUsername string, qualityRating int)
 func (d *Demo) calculateFairnessScores() {
 	fmt.Println("\n📊 Step 5: Calculating PFI★ and TFI★ scores...")
 
+	// Check if we have users to calculate fairness scores for
+	if len(d.users) == 0 {
+		fmt.Println("   ⚠️  No users found, skipping fairness score calculations")
+		return
+	}
+
 	for i, user := range d.users {
 		// Calculate PFI (Personal Fairness Index) using the service method
 		err := d.fairnessService.UpdateUserPFI(user.ID)
@@ -509,6 +530,12 @@ func (d *Demo) getTFICategory(tfi int) string {
 
 func (d *Demo) generateTransactionHistory() {
 	fmt.Println("\n💰 Step 6: Generating realistic transaction history...")
+
+	// Check if we have users to generate transactions for
+	if len(d.users) == 0 {
+		fmt.Println("   ⚠️  No users found, skipping transaction generation")
+		return
+	}
 
 	// Generate initial wallet balances
 	for _, user := range d.users {
@@ -646,6 +673,12 @@ func (d *Demo) generateTransactionHistory() {
 
 func (d *Demo) createGovernanceProposals() {
 	fmt.Println("\n🗳️  Step 7: Creating governance proposals...")
+
+	// Check if we have users to create governance proposals for
+	if len(d.users) == 0 {
+		fmt.Println("   ⚠️  No users found, skipping governance proposals creation")
+		return
+	}
 
 	proposals := []struct {
 		proposerIndex int
@@ -787,18 +820,22 @@ func (d *Demo) displayResults() {
 	// User Statistics
 	fmt.Println("\n👥 USER PROFILES & FAIRNESS SCORES:")
 	fmt.Println("-----------------------------------")
-	for _, user := range d.users {
-		status := "Regular User"
-		if user.IsMerchant {
-			status = "Merchant"
-		}
+	if len(d.users) == 0 {
+		fmt.Println("⚠️  No users were created during this demo run")
+	} else {
+		for _, user := range d.users {
+			status := "Regular User"
+			if user.IsMerchant {
+				status = "Merchant"
+			}
 
-		fmt.Printf("🧑 %s %s (%s) - %s\n", user.FirstName, user.LastName, user.Username, status)
-		fmt.Printf("   PFI★: %d (%s)", user.PFI, d.getPFICategory(user.PFI))
-		if user.IsMerchant {
-			fmt.Printf(", TFI★: %d (%s)", user.TFI, d.getTFICategory(user.TFI))
+			fmt.Printf("🧑 %s %s (%s) - %s\n", user.FirstName, user.LastName, user.Username, status)
+			fmt.Printf("   PFI★: %d (%s)", user.PFI, d.getPFICategory(user.PFI))
+			if user.IsMerchant {
+				fmt.Printf(", TFI★: %d (%s)", user.TFI, d.getTFICategory(user.TFI))
+			}
+			fmt.Printf(", Community Service: %d hours\n", user.CommunityService)
 		}
-		fmt.Printf(", Community Service: %d hours\n", user.CommunityService)
 	}
 
 	// Transaction Statistics
